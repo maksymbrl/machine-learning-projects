@@ -152,18 +152,18 @@ class RegressionPipeline:
     ''' 
     Confidence intervals for beta
     '''
-    def getConfidence(self, *args):
+#    def getConfidence(self, *args):
         #beta, X, confidence=1.96
-        beta = args[0]
-        X = args[1]
-        confidence = args[2]
-        invA = self.doSVD(X)
+#        beta = args[0]
+#        X = args[1]
+#        confidence = args[2]
+#        invA = self.doSVD(X)
         
-        weight = np.sqrt( np.diag( invA ) ) * confidence
-        betamin = beta - weight
-        betamax = beta + weight
+#        weight = np.sqrt( np.diag( invA ) ) * confidence
+#        betamin = beta - weight
+#        betamax = beta + weight
         
-        return betamin, betamax
+#        return betamin, betamax
     '''
     MSE - the smaller the better (0 is the best?)
     '''
@@ -190,6 +190,8 @@ class RegressionPipeline:
         X = args[0]
         # getting z values and making them 1d
         z = np.ravel(args[1])
+        # calculating variance of data
+        
         # and then make the prediction
         invA = self.doSVD(X)
         beta = invA.dot(X.T).dot(z)
@@ -197,7 +199,7 @@ class RegressionPipeline:
         
         # calculating beta confidence
         confidence = args[2] #1.96
-        sigma = args[3] #1
+        sigma = np.var(z)#args[3] #1
         SE = sigma * np.sqrt(np.diag(invA)) * confidence
         beta_min = beta - SE
         beta_max = beta + SE
@@ -219,16 +221,18 @@ class RegressionPipeline:
         # hyper parameter
         lambda_par = args[2]
         # constructing the identity matrix
-        I = np.identity(len(X.T.dot(X)), dtype = float)
+        XTX = X.T.dot(X)
+        I = np.identity(len(XTX), dtype = float)
         # calculating parameters
-        invA = np.linalg.inv(X.T.dot(X) + lambda_par * I)
+        invA = np.linalg.inv(XTX + lambda_par * I)
         beta = invA.dot(X.T).dot(z)
         # and making predictions
         ztilde = X @ beta
         
         # calculating beta confidence
         confidence = args[3] #1.96
-        sigma = args[4] #1
+        # calculating variance
+        sigma = np.var(z)#args[4] #1
         SE = sigma * np.sqrt(np.diag(invA)) * confidence
         beta_min = beta - SE
         beta_max = beta + SE
