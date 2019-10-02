@@ -140,12 +140,10 @@ class MainPipeline:
         filename = 'ridge_p' + str(self.poly_degree).zfill(2) + '.png'
         lib.plotSurface(x, y, zarray_ridge, self.output_dir, filename)
         # betas
-        print('\n')
         filename = 'ridge_beta_p' + str(self.poly_degree).zfill(2) + '.png'
         t = []
         [t.append(i) for i in range(1, len(beta_lin) + 1)]
         lib.plotGraph(t, beta_ridge, beta_min, beta_max, output_dir, filename)
-        print('\n')
         # Calculating k-Fold Cross Validation
         self.kFoldMSEtest_ridge = lib.doCrossValRidge(X, z, self.kfold, self.lambda_par)[0]
         self.kFoldMSEtrain_ridge = lib.doCrossValRidge(X, z, self.kfold, self.lambda_par)[1]
@@ -197,7 +195,13 @@ if __name__ == '__main__':
     # lasso very sensitive to this lambda parameter
     lambda_par = 0.000001
     # object class instantiation
-    print('Fake Data')
+    print(
+        '''
+        #========================#
+        # Working with Fake Data #
+        #========================#        
+        '''
+    )
 
     kFoldMSEtest_lin = []
     kFoldMSEtrain_lin = []
@@ -261,7 +265,13 @@ if __name__ == '__main__':
     using linspace or similar features
     '''
     print('\n')
-    print('Real Data')
+    print(
+        '''
+        #========================#
+        # Working with Real Data #
+        #========================#        
+        '''
+    )
     # Load the terrain
     terrain1 = imread(
         'Data/SRTM_data_Norway_1.tif')  # <= getting z values, now I need to create my x and y with np.linspace
