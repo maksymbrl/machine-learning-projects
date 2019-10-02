@@ -5,6 +5,9 @@ import sympy as sp
 import itertools as it
 # Scikit learn utilities
 from sklearn.model_selection import train_test_split
+# for plotting stuff
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
 
 
 class RegressionPipeline:
@@ -249,3 +252,46 @@ class RegressionPipeline:
     def doLASSORegression(self, *args):
         pass
 
+    '''
+    Methods to plot data
+    '''
+    def plotGraph(self, *args):
+        x = args[0]
+        y = args[1]
+        y_min = args[2]
+        y_max = args[3]
+        output_dir = args[4]
+        filename = args[5]
+
+        fig = plt.figure(figsize = (10, 3))
+        axe = fig.add_subplot(1, 1, 1)
+        axe.plot(x, y, 'bo', label=r'$\beta$')
+        axe.plot(x, y_min, 'r--', label=r'$\beta_{min}$')
+        axe.plot(x, y_max, 'g--', label=r'$\beta_{max}$')
+        axe.legend()
+        plt.grid(True)
+        plt.xlabel('number of ' + r'$\beta$')
+        plt.ylabel(r'$\beta$')
+        fig.savefig(output_dir + '/' + filename)
+        # close the figure window
+        plt.close(fig)
+
+    def plotSurface(self, *args):
+        # passing coordinates
+        x = args[0]
+        y = args[1]
+        # takes an array of z values
+        zarray = args[2]
+        # output dir
+        output_dir = args[3]
+        # filename
+        filename = args[4]
+        #
+        fig = plt.figure(figsize=(10, 3))
+        axes = [fig.add_subplot(1, 3, i, projection='3d') for i in range(1, len(zarray) + 1)]
+        surf = [axes[i].plot_surface(x, y, zarray[i], alpha = 0.5,
+                                     cmap = 'brg_r', linewidth = 0, antialiased = False) for i in range(len(zarray))]
+        # saving figure with corresponding filename
+        fig.savefig(output_dir + '/' + filename)
+        # close the figure window
+        plt.close(fig)

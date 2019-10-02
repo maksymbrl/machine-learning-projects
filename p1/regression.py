@@ -7,6 +7,7 @@ Created on Thu Sep 26 16:13:27 2019
 """
 
 # standard imports
+import os, sys
 import numpy as np
 # for polynomial manipulation
 import sympy as sp
@@ -55,6 +56,8 @@ class MainPipeline:
         self.sigma = args[5]
         # hyper parameter
         self.lambda_par = args[6]
+        # directory to save plots
+        self.output_dir = args[7]
 
     '''
     method to work with fake data, i.e. created using uniform distribution
@@ -78,48 +81,43 @@ class MainPipeline:
         x, y = np.meshgrid(self.x_vals[0], self.x_vals[1])
         # and creating an output based on the input
         z = lib.FrankeFunction(x, y) + 0.1 * np.random.randn(self.N, self.N)
-        # getting design matrix
-        X = lib.constructDesignMatrix(self.poly_degree)
+        # raveling variables
+        x_rav, y_rav, z_rav = np.ravel(x), np.ravel(y), np.ravel(z)
 
         ''' Linear Regression '''
         ''' MANUAL '''
+        # getting design matrix
+        X = lib.constructDesignMatrix(self.poly_degree)
         # getting predictions
-        ztilde_lin, beta_lin, beta_min, beta_max = lib.doLinearRegression(X, z, self.confidence, self.sigma)
+        ztilde_lin, beta_lin, beta_min, beta_max = lib.doLinearRegression(X, z_rav, self.confidence, self.sigma)
         ztilde_lin = ztilde_lin.reshape(-1, self.N)
         ''' Scikit Learn '''
         # generate polynomial
-        poly_features = PolynomialFeatures(degree=self.poly_degree)
+        poly_features = PolynomialFeatures(degree = self.poly_degree)
         # [[x[0], y[0]],[x[1],y[1]], [x[2],y[2]], ...]
         # works mush better than the transpose and reshape
         # (so far reshape, without "F" order was giving crap)
-        X_scikit = np.swapaxes(np.array([np.ravel(x), np.ravel(y)]), 0, 1)
+        X_scikit = np.swapaxes(np.array([x_rav, y_rav]), 0, 1)
         print(np.shape(X_scikit))
         X_poly = poly_features.fit_transform(X_scikit)
-        lin_reg = LinearRegression().fit(X_poly, np.ravel(z))
+        lin_reg = LinearRegression().fit(X_poly, z_rav)
         ztilde_sk = lin_reg.predict(X_poly).reshape(-1, self.N)
-        zarray_lin = [z.reshape(-1, self.N), ztilde_lin, ztilde_sk]
-        #        print('\n')
-        #        print("Linear MSE (no CV) - " + str(lib.getMSE(z, ztilde_lin)) + "; sklearn - " + str(mean_squared_error(z, ztilde_sk)))
-        #        print("Linear R^2 (no CV) - " + str(lib.getR2(z, ztilde_lin)) + "; sklearn - " + str(lin_reg.score(X_poly, z)))
-        #        print('\n')
+        zarray_lin = [z, ztilde_lin, ztilde_sk]
+        # Errors
+        print('\n')
+        print("Linear MSE (no CV) - " + str(lib.getMSE(zarray_lin[0], zarray_lin[1])) + "; sklearn - " + str(mean_squared_error(zarray_lin[0], zarray_lin[2])))
+        print("Linear R^2 (no CV) - " + str(lib.getR2(zarray_lin[0], zarray_lin[1])) + "; sklearn - " + str(lin_reg.score(X_poly, z_rav)))
+        print('\n')
         ''' Plotting Surfaces '''
-        fig = plt.figure(figsize=(10, 3))
-        fig.suptitle('Linear Regression', fontsize=14)
-        axes = [fig.add_subplot(1, 3, i, projection='3d') for i in range(1, 4)]
-        surf = [axes[i].plot_surface(x, y, zarray_lin[i], alpha=0.5, \
-                                     cmap='brg_r', linewidth=0, antialiased=False) for i in range(3)]
+        filename = 'linear_p' + str(self.poly_degree).zfill(2) + '.png'
+        # calling method from library to do this for us
+        lib.plotSurface(x, y, zarray_lin, self.output_dir, filename)
+
         # betas
-        fig = plt.figure(figsize=(10, 3))
-        ax1 = fig.add_subplot(1, 1, 1)
+        filename = 'linear_beta_p' + str(self.poly_degree).zfill(2) + '.png'
         t = []
         [t.append(i) for i in range(1, len(beta_lin) + 1)]
-        ax1.plot(t, beta_lin, 'bo', label=r'$\beta$')
-        ax1.plot(t, beta_min, 'r--', label=r'$\beta_{min}$')
-        ax1.plot(t, beta_max, 'g--', label=r'$\beta_{max}$')
-        ax1.legend()
-        plt.grid(True)
-        plt.xlabel('number of ' + r'$\beta$')
-        plt.ylabel(r'$\beta$')
+        lib.plotGraph(t, beta_lin, beta_min, beta_max, output_dir, filename)
 
         # Calculating k-Fold Cross Validation
         self.kFoldMSEtest_lin = lib.doCrossVal(X, z, self.kfold)[0]
@@ -127,36 +125,26 @@ class MainPipeline:
 
         ''' Ridge Regression '''
         ''' MANUAL '''
-        ztilde_ridge, beta_ridge, beta_min, beta_max = lib.doRidgeRegression(X, z, self.lambda_par, self.confidence,
+        ztilde_ridge, beta_ridge, beta_min, beta_max = lib.doRidgeRegression(X, z_rav, self.lambda_par, self.confidence,
                                                                              self.sigma)
         ztilde_ridge = ztilde_ridge.reshape(-1, self.N)
         ''' Scikit Learn '''
-        ridge_reg = Ridge(alpha=self.lambda_par, fit_intercept=True).fit(X_poly, np.ravel(z))
+        ridge_reg = Ridge(alpha=self.lambda_par, fit_intercept=True).fit(X_poly, z_rav)
         ztilde_sk = ridge_reg.predict(X_poly).reshape(-1, self.N)
-        zarray_ridge = [z.reshape(-1, self.N), ztilde_ridge, ztilde_sk]
-        #        print('\n')
-        #        print("Ridge MSE (no CV) - " + str(lib.getMSE(z, ztilde_ridge)) + "; sklearn - " + str(mean_squared_error(z, ztilde_sk)))
-        #        print("Ridge R^2 (no CV) - " + str(lib.getR2(z, ztilde_ridge)) + "; sklearn - " + str(ridge_reg.score(X_poly, z)))
-        #        print('\n')
+        zarray_ridge = [z, ztilde_ridge, ztilde_sk]
+        print('\n')
+        print("Ridge MSE (no CV) - " + str(lib.getMSE(zarray_ridge[0], zarray_ridge[1])) + "; sklearn - " + str(mean_squared_error(zarray_ridge[0], zarray_ridge[2])))
+        print("Ridge R^2 (no CV) - " + str(lib.getR2(zarray_ridge[0], zarray_ridge[1])) + "; sklearn - " + str(ridge_reg.score(X_poly, z_rav)))
+        print('\n')
         ''' Plotting Surfaces '''
-        fig = plt.figure(figsize=(10, 3))
-        fig.suptitle('Ridge Regression', fontsize=14)
-        axes = [fig.add_subplot(1, 3, i, projection='3d') for i in range(1, 4)]
-        surf = [axes[i].plot_surface(x, y, zarray_ridge[i], alpha=0.5, \
-                                     cmap='brg_r', linewidth=0, antialiased=False) for i in range(3)]
+        filename = 'ridge_p' + str(self.poly_degree).zfill(2) + '.png'
+        lib.plotSurface(x, y, zarray_ridge, self.output_dir, filename)
         # betas
         print('\n')
-        fig = plt.figure(figsize=(10, 3))
-        ax1 = fig.add_subplot(1, 1, 1)
+        filename = 'ridge_beta_p' + str(self.poly_degree).zfill(2) + '.png'
         t = []
         [t.append(i) for i in range(1, len(beta_lin) + 1)]
-        ax1.plot(t, beta_ridge, 'bo', label=r'$\beta$')
-        ax1.plot(t, beta_min, 'r--', label=r'$\beta_{min}$')
-        ax1.plot(t, beta_max, 'g--', label=r'$\beta_{max}$')
-        ax1.legend()
-        plt.grid(True)
-        plt.xlabel('number of ' + r'$\beta$')
-        plt.ylabel(r'$\beta$')
+        lib.plotGraph(t, beta_ridge, beta_min, beta_max, output_dir, filename)
         print('\n')
         # Calculating k-Fold Cross Validation
         self.kFoldMSEtest_ridge = lib.doCrossValRidge(X, z, self.kfold, self.lambda_par)[0]
@@ -165,19 +153,14 @@ class MainPipeline:
         ''' LASSO Regression '''
         lasso_reg = Lasso(alpha=self.lambda_par).fit(X_poly, np.ravel(z))
         ztilde_sk = lasso_reg.predict(X_poly).reshape(-1, self.N)
-        zarray_lasso = [z.reshape(-1, self.N), ztilde_sk]
-        #        print('\n')
-        #        print("SL Lasso MSE (no CV) - " + str(mean_squared_error(z, ztilde_sk)))
-        #        print("SL Lasso R^2 (no CV) - " + str(lasso_reg.score(X_poly, z)))
-        #        print('\n')
+        zarray_lasso = [z, ztilde_sk]
+        print('\n')
+        print("SL Lasso MSE (no CV) - " + str(mean_squared_error(zarray_lasso[0], zarray_lasso[1])))
+        print("SL Lasso R^2 (no CV) - " + str(lasso_reg.score(X_poly, z_rav)))
+        print('\n')
         ''' Plotting Surfaces '''
-        fig = plt.figure(figsize=(10, 3))
-        fig.suptitle('Lasso Regression', fontsize=14)
-        axes = [fig.add_subplot(1, 3, i, projection='3d') for i in range(1, 3)]
-        surf = [axes[i].plot_surface(x, y, zarray_lasso[i], alpha=0.5, \
-                                     cmap='brg_r', linewidth=0, antialiased=False) for i in range(2)]
-
-        plt.show()
+        filename = 'lasso_p' + str(self.poly_degree).zfill(2) + '.png'
+        lib.plotSurface(x, y, zarray_lasso, self.output_dir, filename)
 
         # Calculating k-Fold Cross Validation
         #global kFoldMSE_lasso
@@ -193,7 +176,11 @@ class MainPipeline:
 if __name__ == '__main__':
     # Start time of the program
     start_time = time.time()
-
+    # Creating output directory to save plots (in  png format)
+    output_dir = 'Output'
+    # checking whether the output directory already exists (if not, create one)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     ''' Working with Fake Data '''
     ''' Input Parameters '''
     # number of points
@@ -222,7 +209,7 @@ if __name__ == '__main__':
         print('\n')
         print('Starting analysis for polynomial of degree: ' + str(poly_degree))
         pipeline = MainPipeline(N_points, n_vars, poly_degree,
-                                kfold, confidence, sigma, lambda_par)
+                                kfold, confidence, sigma, lambda_par, output_dir)
         # Linear regression on fake data
         pipeline.doFakeData()
         # linear regression kfold
@@ -234,6 +221,8 @@ if __name__ == '__main__':
 
     ''' MSE as a function of model complexity '''
     # plotting MSE from test data
+    # Linear Regression
+    filename = 'linear_mse_p' + str(poly_degree).zfill(2) + '.png'
     fig = plt.figure(figsize = (10, 3))
     ax1 = fig.add_subplot(1, 1, 1)
     t = []
@@ -246,7 +235,11 @@ if __name__ == '__main__':
     plt.title('MSE as a function of model complexity; Linear Regression')
     plt.xlabel('model complexity (polynomial degree)')
     plt.ylabel('MSE')
+    fig.savefig(output_dir + '/' + filename)
+    plt.close(fig)
 
+    # Ridge Regression
+    filename = 'ridge_mse_p' + str(poly_degree).zfill(2) + '.png'
     fig = plt.figure(figsize=(10, 3))
     ax1 = fig.add_subplot(1, 1, 1)
     t = []
@@ -258,7 +251,9 @@ if __name__ == '__main__':
     plt.title('MSE as a function of model complexity; Ridge Regression')
     plt.xlabel('model complexity (polynomial degree)')
     plt.ylabel('MSE')
-    plt.show()
+    fig.savefig(output_dir + '/' + filename)
+    plt.close(fig)
+    #plt.show()
 
     ''' Working with Real Data '''
     '''
@@ -270,14 +265,15 @@ if __name__ == '__main__':
     # Load the terrain
     terrain1 = imread(
         'Data/SRTM_data_Norway_1.tif')  # <= getting z values, now I need to create my x and y with np.linspace
-    print(np.shape(terrain1))
+    #print(np.shape(terrain1))
     # Show the terrain
-    plt.figure()
-    plt.title('Terrain over Norway 1')
-    plt.imshow(terrain1, cmap='gray')
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.show()
+    #plt.figure()
+    #plt.title('Terrain over Norway 1')
+    #plt.imshow(terrain1, cmap='gray')
+    #plt.xlabel('X')
+    #plt.ylabel('Y')
+    #plt.close()
+    #plt.show()
 
     # End time of the program
     end_time = time.time()
