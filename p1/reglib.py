@@ -73,8 +73,8 @@ class RegressionPipeline:
         D = np.zeros((len(U), len(VT)))
         for i in range(0, len(VT)):
             D[i, i] = s[i]
-        UT = np.transpose(U);
-        V = np.transpose(VT);
+        UT = np.transpose(U)
+        V = np.transpose(VT)
         invD = np.linalg.inv(D)
         invA = np.matmul(V, np.matmul(invD, UT))
 
@@ -262,7 +262,8 @@ class RegressionPipeline:
         y_max = args[3]
         output_dir = args[4]
         filename = args[5]
-
+        # Turning interactive mode on
+        #plt.ion()
         fig = plt.figure(figsize = (10, 3))
         axe = fig.add_subplot(1, 1, 1)
         axe.plot(x, y, 'bo', label=r'$\beta$')
@@ -275,6 +276,8 @@ class RegressionPipeline:
         fig.savefig(output_dir + '/' + filename)
         # close the figure window
         plt.close(fig)
+        # turning the interactive mode off
+        #plt.ioff()
 
     def plotSurface(self, *args):
         # passing coordinates
@@ -286,7 +289,8 @@ class RegressionPipeline:
         output_dir = args[3]
         # filename
         filename = args[4]
-        #
+        # Turning interactive mode on
+        #plt.ion()
         fig = plt.figure(figsize=(10, 3))
         axes = [fig.add_subplot(1, 3, i, projection='3d') for i in range(1, len(zarray) + 1)]
         surf = [axes[i].plot_surface(x, y, zarray[i], alpha = 0.5,
@@ -295,3 +299,5 @@ class RegressionPipeline:
         fig.savefig(output_dir + '/' + filename)
         # close the figure window
         plt.close(fig)
+        # turning the interactive mode off
+        #plt.ioff()

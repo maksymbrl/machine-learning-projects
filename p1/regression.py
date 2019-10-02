@@ -17,7 +17,9 @@ import itertools as it
 import reglib as rl
 
 from mpl_toolkits.mplot3d import Axes3D
+import matplotlib
 import matplotlib.pyplot as plt
+#matplotlib.use('Qt5Agg')
 from matplotlib import cm
 # to use latex symbols
 # from matplotlib import rc
@@ -40,7 +42,7 @@ import time
 # rc('text', usetex=True)
 # rc('text.latex', preamble=r'\usepackage{amssymb}')
 
-class MainPipeline:
+class MainPipeline(object):
     ''' class constructor '''
     def __init__(self, *args):
         # number of points
@@ -168,7 +170,8 @@ class MainPipeline:
     '''
 
     def doRealData(self, *args):
-        pass
+        z = args[0]
+        print(np.shape(z))
 
 
 if __name__ == '__main__':
@@ -186,7 +189,7 @@ if __name__ == '__main__':
     # number of independent variables (features)
     n_vars = 2
     # polynomial degree
-    max_poly_degree = 5
+    max_poly_degree = 1
     # the amount of folds to get from your data
     kfold = 5
     # to calculate confidence intervals
@@ -223,6 +226,8 @@ if __name__ == '__main__':
         kFoldMSEtest_ridge.append(pipeline.kFoldMSEtest_ridge)
         kFoldMSEtrain_ridge.append(pipeline.kFoldMSEtrain_ridge)
 
+    # Turning interactive mode on
+    #plt.ion()
     ''' MSE as a function of model complexity '''
     # plotting MSE from test data
     # Linear Regression
@@ -257,7 +262,10 @@ if __name__ == '__main__':
     plt.ylabel('MSE')
     fig.savefig(output_dir + '/' + filename)
     plt.close(fig)
-    #plt.show()
+    #plt.show(block=False)
+    # turning the interactive mode off
+    #plt.ioff()
+    #plt.close('all')
 
     ''' Working with Real Data '''
     '''
@@ -273,8 +281,7 @@ if __name__ == '__main__':
         '''
     )
     # Load the terrain
-    terrain1 = imread(
-        'Data/SRTM_data_Norway_1.tif')  # <= getting z values, now I need to create my x and y with np.linspace
+    terrain1 = imread('Data/SRTM_data_Norway_1.tif')  # <= getting z values, now I need to create my x and y with np.linspace
     #print(np.shape(terrain1))
     # Show the terrain
     #plt.figure()
@@ -284,6 +291,8 @@ if __name__ == '__main__':
     #plt.ylabel('Y')
     #plt.close()
     #plt.show()
+
+    pipeline.doRealData(terrain1)
 
     # End time of the program
     end_time = time.time()
