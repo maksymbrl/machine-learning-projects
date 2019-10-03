@@ -255,7 +255,7 @@ class RegressionPipeline:
     '''
     Methods to plot data
     '''
-    def plotGraph(self, *args):
+    def plotBeta(self, *args):
         x = args[0]
         y = args[1]
         y_min = args[2]
