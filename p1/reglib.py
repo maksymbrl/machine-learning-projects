@@ -3,11 +3,19 @@ import numpy as np
 import sympy as sp
 # from sympy import *
 import itertools as it
-# Scikit learn utilities
-from sklearn.model_selection import train_test_split
 # for plotting stuff
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
+
+# Scikit learn utilities
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.utils import resample
+from sklearn.model_selection import KFold
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import cross_val_score
 
 
 class RegressionLibrary:
@@ -23,7 +31,6 @@ class RegressionLibrary:
     '''
     Franke function, used to generate outputs (z values)
     '''
-
     def FrankeFunction(self, x, y):
         term1 = 0.75 * np.exp(-(0.25 * (9 * x - 2) ** 2) - 0.25 * ((9 * y - 2) ** 2))
         term2 = 0.75 * np.exp(-((9 * x + 1) ** 2) / 49.0 - 0.1 * (9 * y + 1))
@@ -83,7 +90,42 @@ class RegressionLibrary:
     '''
     k-Fold Cross Validation
     '''
+    # method for shuffling arrays randomly (but simultaneously <= we still have ordered pairs)
+    def shuffleDataSimultaneously(self, a, b):
+        assert len(a) == len(b)
+        p = np.random.permutation(len(a))
+        return a[p], b[p]
 
+    # function to split data set manually
+    def splitDataset(self, *args):
+        # getting inputs
+        X = args[0]
+        z = args[1]
+        kfold = args[2]
+        iterator = args[3]
+        # shuffling dataset randomly
+        # 1. Shuffling datasets randomly:
+        X, z = self.shuffleDataSimultaneously(X, z)
+        # 2. Split the dataset into k groups:
+        X_split = np.array_split(X, kfold)
+        z_split = np.array_split(z, kfold)
+        # train data set - making a copy of the shuffled and splitted arrays
+        X_train = X_split.copy()
+        z_train = z_split.copy()
+        # test data set - each time new element
+        X_test = X_split[iterator]
+        z_test = z_split[iterator]
+        # deleting current element
+        X_train = np.delete(X_train, iterator, 0)
+        z_train = np.delete(z_train, iterator, 0)
+        # and adjusting arrays dimensions (e.g. X: [4, 500, 21] => [2000, 21])
+        X_train = np.concatenate(X_train, axis=0)
+        z_train = z_train.ravel()
+
+        return X_train, X_test, z_train, z_test
+    '''
+    Linear Cross validation (manual algorithm)
+    '''
     def doCrossVal(self, *args):
         # getting design matrix
         X = args[0]
@@ -91,12 +133,16 @@ class RegressionLibrary:
         z = np.ravel(args[1])
         kfold = args[2]
         # Splitting and shuffling data randomly
-        X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1. / kfold, shuffle=True)
+        #X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1. / kfold, shuffle=True)
         MSEtest_lintot = []
         MSEtrain_lintot = []
         z_tested = []
         z_trained = []
         for i in range(kfold):
+            #print(np.shape(X_train), np.shape(z_train))
+            # Splitting and shuffling data randomly
+            #X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
+            X_train, X_test, z_train, z_test = self.splitDataset(X, z, kfold, i)
             # Train The Pipeline
             invA = self.doSVD(X_train)
             beta_train = invA.dot(X_train.T).dot(z_train)
@@ -114,6 +160,9 @@ class RegressionLibrary:
 
         return MSEtest_lin, MSEtrain_lin
 
+    '''
+    Ridge Cross validation - manual algorithm
+    '''
     def doCrossValRidge(self, *args):
         # getting design matrix
         X = args[0]
@@ -121,15 +170,16 @@ class RegressionLibrary:
         z = np.ravel(args[1])
         kfold = args[2]
         lambda_par = args[3]
-        # Splitting and shuffling data randomly
-        X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1. / kfold, shuffle=True)
-        # constructing the identity matrix
-        I = np.identity(len(X_train.T.dot(X_train)), dtype=float)
         MSEtest_ridgetot = []
         MSEtrain_ridgetot = []
         z_tested = []
         z_trained = []
         for i in range(kfold):
+            # Splitting and shuffling data randomly
+            #X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
+            X_train, X_test, z_train, z_test = self.splitDataset(X, z, kfold, i)
+            # constructing the identity matrix
+            I = np.identity(len(X_train.T.dot(X_train)), dtype=float)
             # Train The Pipeline
             # calculating parameters
             invA = np.linalg.inv(X_train.T.dot(X_train) + lambda_par * I)
@@ -147,6 +197,71 @@ class RegressionLibrary:
         MSEtrain_ridge = np.mean(MSEtrain_ridgetot)
 
         return MSEtest_ridge, MSEtrain_ridge
+    '''
+    Cross Validation using Scikit Learn functionalities (all at once)
+    '''
+    def doCrossValScikit(self, *args):
+        # getting inputs
+        X = args[0]
+        z = args[1]
+        kfold = args[2]
+        poly_degree = args[3]
+        lambda_par = args[4]
+        # understanding the regression type to use
+        reg_type = args[5]
+        if reg_type == 'linear':
+            model = LinearRegression(fit_intercept = True)
+        elif reg_type == 'ridge':
+            model = Ridge(alpha = lambda_par, fit_intercept = True)
+        elif reg_type == 'lasso':
+            model = Lasso(alpha = lambda_par)
+        else:
+            print("Houston, we've got a problem!")
+        #err = []
+        #bi=[]
+        #vari=[]
+        MSEtest = []
+        MSEtrain = []
+        # getting the correct size of the array
+        #X_trainz, X_testz, y_trainz, y_testz = train_test_split(X, z, test_size = 1./kfold)
+        #array_size = len(y_testz)
+        # creating an empty array
+        #z_pred = np.empty((array_size, kfold))
+        # making splits - shuffling it
+        cv = KFold(n_splits = kfold, shuffle = True, random_state = 1)
+        # enumerate splits - splitting the data set to train and test splits
+        for train, test in cv.split(X):
+            X_train, X_test = X[train], X[test]
+            z_train, z_test = z[train], z[test]
+            # making the prediction - comparing outputs for current and "future" datasets
+            z_tilde = model.fit(X_train, z_train).predict(X_train).ravel() # z_trained
+            z_pred = model.fit(X_train, z_train).predict(X_test).ravel() # z_tested
+            #print(np.shape(z_train), np.shape(z_tilde))
+
+            #z_trained.append(X_train @ beta_train)
+            #z_tested.append(X_test @ beta_train)
+            # Calculating MSE for each iteration
+            #MSEtest_ridgetot.append(self.getMSE(z_test, z_tested[i]))
+            #MSEtrain_ridgetot.append(self.getMSE(z_train, z_trained[i]))
+
+            MSEtest.append(mean_squared_error(z_test, z_pred))
+            MSEtrain.append(mean_squared_error(z_train, z_tilde))
+        # getting the mean values for errors (to plot them later)
+        MSEtest_mean = np.mean(MSEtest)
+        MSEtrain_mean = np.mean(MSEtrain)
+        # mean squared error
+        #error = np.mean( np.mean((z_test - z_pred)**2, axis=1, keepdims=True) )
+        #bias = np.mean( (z_test - np.mean(z_pred, axis=1, keepdims=True))**2 )
+        #variance = np.mean( np.var(z_pred, axis=1, keepdims=True) )
+        #err.append(error)
+        #bi.append(bias)
+        #vari.append(variance)
+
+        # returning MSE, bias and variance for  a given polynomial degree
+        return MSEtest_mean, MSEtrain_mean
+        #model = make_pipeline(PolynomialFeatures(degree = deg), LinearRegression(fit_intercept=False))
+
+        #splitting dataset
 
     ''' 
     Confidence intervals for beta

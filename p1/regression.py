@@ -28,14 +28,18 @@ from matplotlib import cm
 from imageio import imread
 
 # Machine Learning libraries
+# to generate polynomial (for regression)
 from sklearn.preprocessing import PolynomialFeatures
+# regression libraries
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import Ridge
 from sklearn.linear_model import Lasso
 
 from sklearn.metrics import mean_squared_error
+# to split data for testing and training - KFold cross validation implementation
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
+from sklearn.model_selection import cross_val_score
 
 import time
 
@@ -45,7 +49,7 @@ import time
 class MainPipeline(object):
     ''' class constructor '''
     def __init__(self, *args):
-        #===========================
+        #==============================================================================================================#
         # symbolic variables
         self.x_symb = args[0]
         # array of values for each variable/feature
@@ -67,7 +71,7 @@ class MainPipeline(object):
         self.prefix = args[10]
         # degree of polynomial to fit
         self.poly_degree = args[11]
-        #=============================
+        #==============================================================================================================#
 
     '''
     Method to return calculated values (surface plots, MSEs, betas etc.), based on the user input choice.
@@ -79,8 +83,9 @@ class MainPipeline(object):
         x_rav, y_rav, z_rav = np.ravel(self.x), np.ravel(self.y), np.ravel(self.z)
         # shape of z
         zshape = np.shape(self.z)
-
+        #==============================================================================================================#
         ''' Linear Regression '''
+        #==============================================================================================================#
         ''' MANUAL '''
         # getting design matrix
         X = lib.constructDesignMatrix(self.poly_degree)
@@ -112,10 +117,18 @@ class MainPipeline(object):
         t = []
         [t.append(i) for i in range(1, len(beta_lin) + 1)]
         lib.plotBeta(t, beta_lin, beta_min, beta_max, output_dir, filename)
-        # Calculating k-Fold Cross Validation
+        ''' kFold Cross Validation '''
+        ''' MANUAL '''
         self.kFoldMSEtest_lin = lib.doCrossVal(X, self.z, self.kfold)[0]
         self.kFoldMSEtrain_lin = lib.doCrossVal(X, self.z, self.kfold)[1]
+        ''' Scikit Learn '''
+        reg_type = 'linear'
+        self.kFoldMSEtestSK_lin = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[0]
+        self.kFoldMSEtrainSK_lin = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[1]
+
+        #==============================================================================================================#
         ''' Ridge Regression '''
+        #==============================================================================================================#
         ''' MANUAL '''
         ztilde_ridge, beta_ridge, beta_min, beta_max = lib.doRidgeRegression(X, z_rav, self.lambda_par, self.confidence, self.sigma)
         ztilde_ridge = ztilde_ridge.reshape(zshape)
@@ -138,8 +151,15 @@ class MainPipeline(object):
         # Calculating k-Fold Cross Validation
         self.kFoldMSEtest_ridge = lib.doCrossValRidge(X, self.z, self.kfold, self.lambda_par)[0]
         self.kFoldMSEtrain_ridge = lib.doCrossValRidge(X, self.z, self.kfold, self.lambda_par)[1]
+        ''' Scikit Learn '''
+        # chosing the type of regression
+        reg_type = 'ridge'
+        self.kFoldMSEtestSK_ridge = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[0]
+        self.kFoldMSEtrainSK_ridge = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[1]
 
+        #==============================================================================================================#
         ''' LASSO Regression '''
+        #==============================================================================================================#
         ''' Scikit Learn '''
         lasso_reg = Lasso(alpha=self.lambda_par).fit(X_poly, z_rav)
         ztilde_sk = lasso_reg.predict(X_poly).reshape(zshape)
@@ -151,11 +171,17 @@ class MainPipeline(object):
         ''' Plotting Surfaces '''
         filename = self.prefix + '_lasso_p' + str(self.poly_degree).zfill(2) + '.png'
         lib.plotSurface(self.x, self.y, zarray_lasso, self.output_dir, filename)
+        # k-fold
+        reg_type = 'lasso'
+        self.kFoldMSEtestSK_lasso = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[0]
+        self.kFoldMSEtrainSK_lasso = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[1]
 
         '''
         0. Change sigma from 1 to 0.1 (look into slides, it is noise standard deviation)
         1. Need to implement Kfold cross validation with Scikit Learn for all of these
-        2. Bias Viariance Trade-off - plot things for different lambda parameter (one plot, different lambda curves)
+        2. Bias Viariance Trade-off - plot things for different lambda parameter (one plot, different lambda curves):
+            make lambda as minimal parameter (i.e. it will be working with ranges of lambda 
+            for different regression algorithms)
         3. Write down your report nicely :)
         '''
         # Calculating k-Fold Cross Validation
@@ -291,9 +317,16 @@ if __name__ == '__main__':
     # To plot MSE from kFold Cross Validation
     kFoldMSEtest_lin = []
     kFoldMSEtrain_lin = []
+    kFoldMSEtestSK_lin = []
+    kFoldMSEtrainSK_lin = []
+
     kFoldMSEtest_ridge = []
     kFoldMSEtrain_ridge = []
-    kFoldMSEtest_lasso = []
+    kFoldMSEtestSK_ridge = []
+    kFoldMSEtrainSK_ridge = []
+
+    kFoldMSEtestSK_lasso = []
+    kFoldMSEtrainSK_lasso = []
     # looping through all polynomial degrees
     for poly_degree in range(1, max_poly_degree+1):
         print('\n')
@@ -304,9 +337,16 @@ if __name__ == '__main__':
         # linear regression kfold
         kFoldMSEtest_lin.append(pipeline.kFoldMSEtest_lin)
         kFoldMSEtrain_lin.append(pipeline.kFoldMSEtrain_lin)
+        kFoldMSEtestSK_lin.append(pipeline.kFoldMSEtestSK_lin)
+        kFoldMSEtrainSK_lin.append(pipeline.kFoldMSEtrainSK_lin)
         # ridge regression kfold
         kFoldMSEtest_ridge.append(pipeline.kFoldMSEtest_ridge)
         kFoldMSEtrain_ridge.append(pipeline.kFoldMSEtrain_ridge)
+        kFoldMSEtestSK_ridge.append(pipeline.kFoldMSEtestSK_ridge)
+        kFoldMSEtrainSK_ridge.append(pipeline.kFoldMSEtrainSK_ridge)
+        # lasso regression kfold
+        kFoldMSEtestSK_lasso.append(pipeline.kFoldMSEtestSK_lasso)
+        kFoldMSEtrainSK_lasso.append(pipeline.kFoldMSEtrainSK_lasso)
 
     # Turning interactive mode on
     #plt.ion()
@@ -314,109 +354,74 @@ if __name__ == '__main__':
     # plotting MSE from test data
     # Linear Regression
     filename = prefix + '_linear_mse_p' + str(poly_degree).zfill(2) + '.png'
-    fig = plt.figure(figsize = (10, 3))
-    ax1 = fig.add_subplot(1, 1, 1)
+    fig = plt.figure()
+    ax1 = fig.add_subplot(2, 1, 1)
+    ax2 = fig.add_subplot(2, 1, 2)
     t = []
     [t.append(i) for i in range(1, max_poly_degree + 1)]
+    # manual
     ax1.plot(t, kFoldMSEtest_lin, 'bo', label='test')
     ax1.plot(t, kFoldMSEtrain_lin, 'r--', label='train')
+    # scikit learn
+    ax2.plot(t, kFoldMSEtestSK_lin, 'bo', label='test')
+    ax2.plot(t, kFoldMSEtrainSK_lin, 'r--', label='train')
     ax1.set_yscale('log')
+    ax2.set_yscale('log')
     ax1.legend()
-    plt.grid(True)
-    plt.title('MSE as a function of model complexity; Linear Regression')
+    ax2.legend()
+    ax1.grid(True)
+    ax2.grid(True)
+    ax1.set_title('MSE as a function of model complexity; Linear Regression')
+    #plt.title('MSE as a function of model complexity; Linear Regression')
     plt.xlabel('model complexity (polynomial degree)')
-    plt.ylabel('MSE')
+    ax1.set_ylabel('MSE')
+    ax2.set_ylabel('MSE')
     fig.savefig(output_dir + '/' + filename)
     plt.close(fig)
 
     # Ridge Regression
     filename = prefix + '_ridge_mse_p' + str(poly_degree).zfill(2) + '.png'
-    fig = plt.figure(figsize=(10, 3))
+    fig = plt.figure()
+    ax1 = fig.add_subplot(2, 1, 1)
+    ax2 = fig.add_subplot(2, 1, 2)
+    t = []
+    [t.append(i) for i in range(1, max_poly_degree + 1)]
+    # manual
+    ax1.plot(t, kFoldMSEtest_ridge, 'bo', label='test')
+    ax1.plot(t, kFoldMSEtrain_ridge, 'r--', label='train')
+    #scikit learn
+    ax2.plot(t, kFoldMSEtestSK_ridge, 'bo', label='test')
+    ax2.plot(t, kFoldMSEtrainSK_ridge, 'r--', label='train')
+    ax1.set_yscale('log')
+    ax2.set_yscale('log')
+    ax1.legend()
+    ax2.legend()
+    ax1.grid(True)
+    ax2.grid(True)
+    ax1.set_title('MSE as a function of model complexity; Ridge Regression')
+    plt.xlabel('model complexity (polynomial degree)')
+    ax1.set_ylabel('MSE')
+    ax2.set_ylabel('MSE')
+    fig.savefig(output_dir + '/' + filename)
+    plt.close(fig)
+
+    # LASSO regression
+    filename = prefix + '_lasso_mse_p' + str(poly_degree).zfill(2) + '.png'
+    fig = plt.figure()
     ax1 = fig.add_subplot(1, 1, 1)
     t = []
     [t.append(i) for i in range(1, max_poly_degree + 1)]
-    ax1.plot(t, kFoldMSEtest_ridge, 'bo', label='test')
-    ax1.plot(t, kFoldMSEtrain_ridge, 'r--', label='train')
+    # scikit learn
+    ax1.plot(t, kFoldMSEtestSK_lasso, 'bo', label='test')
+    ax1.plot(t, kFoldMSEtrainSK_lasso, 'r--', label='train')
+    ax1.set_yscale('log')
     ax1.legend()
-    plt.grid(True)
-    plt.title('MSE as a function of model complexity; Ridge Regression')
+    ax1.grid(True)
+    ax1.set_title('MSE as a function of model complexity; Ridge Regression')
     plt.xlabel('model complexity (polynomial degree)')
-    plt.ylabel('MSE')
+    ax1.set_ylabel('MSE')
     fig.savefig(output_dir + '/' + filename)
     plt.close(fig)
-    #plt.show(block=False)
-    # turning the interactive mode off
-    #plt.ioff()
-    #plt.close('all')
-
-
-
-#    time.sleep(100)
-
-#    ''' Working with Fake Data '''
-#    ''' Input Parameters '''
-    # number of points
-#    N_points = 50
-    # number of independent variables (features)
-#    n_vars = 2
-    # polynomial degree
-#    max_poly_degree = 5
-    # the amount of folds to get from your data
-#    kfold = 5
-    # to calculate confidence intervals
-#    confidence = 1.96
-#    sigma = 1
-    # lasso very sensitive to this lambda parameter
-#    lambda_par = 0.000001
-    # object class instantiation
-#    print(
-#        '''
-        #========================#
-        # Working with Fake Data #
-        #========================#        
-#        '''
-#    )
-
-#    for poly_degree in range(1, max_poly_degree + 1):
-#        print('\n')
-#        print('Starting analysis for polynomial of degree: ' + str(poly_degree))
-#        pipeline = MainPipeline(N_points, n_vars, poly_degree,
-#                                kfold, confidence, sigma, lambda_par, output_dir)
-        # Linear regression on fake data
-#        pipeline.doFakeData()
-        # linear regression kfold
-#        kFoldMSEtest_lin.append(pipeline.fake_kFoldMSEtest_lin)
-#        kFoldMSEtrain_lin.append(pipeline.fake_kFoldMSEtrain_lin)
-        # ridge regression kfold
-#        kFoldMSEtest_ridge.append(pipeline.fake_kFoldMSEtest_ridge)
-#        kFoldMSEtrain_ridge.append(pipeline.fake_kFoldMSEtrain_ridge)
-
-#    ''' Working with Real Data '''
-#    '''
-#    In this way we are getting Z values, now what I need is to generate X,Y
-#    using linspace or similar features
-#    '''
-#    print('\n')
-#    print(
- #       '''
-        #========================#
-        # Working with Real Data #
-        #========================#        
- #       '''
- #   )
-    # Load the terrain
- #   terrain1 = imread('Data/SRTM_data_Norway_1.tif')  # <= getting z values, now I need to create my x and y with np.linspace
-    #print(np.shape(terrain1))
-    # Show the terrain
-    #plt.figure()
-    #plt.title('Terrain over Norway 1')
-    #plt.imshow(terrain1, cmap='gray')
-    #plt.xlabel('X')
-    #plt.ylabel('Y')
-    #plt.close()
-    #plt.show()
-
- #   pipeline.doRealData(terrain1)
 
     # End time of the program
     end_time = time.time()
