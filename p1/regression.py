@@ -149,13 +149,26 @@ class MainPipeline(object):
         [t.append(i) for i in range(1, len(beta_lin) + 1)]
         lib.plotBeta(t, beta_ridge, beta_min, beta_max, output_dir, filename)
         # Calculating k-Fold Cross Validation
-        self.kFoldMSEtest_ridge = lib.doCrossValRidge(X, self.z, self.kfold, self.lambda_par)[0]
-        self.kFoldMSEtrain_ridge = lib.doCrossValRidge(X, self.z, self.kfold, self.lambda_par)[1]
+        # making a dictionary of values which will save "mse mean value"
+        self.kFoldMSEtest_ridge = {}
+        self.kFoldMSEtrain_ridge = {}
+        curr_lambda = 1
+        while curr_lambda >= self.lambda_par:
+            self.kFoldMSEtest_ridge[curr_lambda] = lib.doCrossValRidge(X, self.z, self.kfold, curr_lambda)[0]
+            self.kFoldMSEtrain_ridge[curr_lambda] = lib.doCrossValRidge(X, self.z, self.kfold, curr_lambda)[1]
+            curr_lambda = curr_lambda/10
+
         ''' Scikit Learn '''
         # chosing the type of regression
         reg_type = 'ridge'
-        self.kFoldMSEtestSK_ridge = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[0]
-        self.kFoldMSEtrainSK_ridge = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[1]
+        # making a dictionary of values which will save "mse mean value"
+        self.kFoldMSEtestSK_ridge = {}
+        self.kFoldMSEtrainSK_ridge = {}
+        curr_lambda = 1
+        while curr_lambda >= self.lambda_par:
+            self.kFoldMSEtestSK_ridge[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, curr_lambda, reg_type)[0]
+            self.kFoldMSEtrainSK_ridge[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, curr_lambda, reg_type)[1]
+            curr_lambda = curr_lambda/10
 
         #==============================================================================================================#
         ''' LASSO Regression '''
@@ -171,10 +184,18 @@ class MainPipeline(object):
         ''' Plotting Surfaces '''
         filename = self.prefix + '_lasso_p' + str(self.poly_degree).zfill(2) + '.png'
         lib.plotSurface(self.x, self.y, zarray_lasso, self.output_dir, filename)
-        # k-fold
+        # k-fold - studying the dependence on lambda
         reg_type = 'lasso'
-        self.kFoldMSEtestSK_lasso = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[0]
-        self.kFoldMSEtrainSK_lasso = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[1]
+        # making a dictionary of values which will save "mse mean value"
+        self.kFoldMSEtestSK_lasso = {}
+        self.kFoldMSEtrainSK_lasso = {}
+        curr_lambda = 1
+        while curr_lambda >= self.lambda_par:
+            self.kFoldMSEtestSK_lasso[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, curr_lambda, reg_type)[0]
+            self.kFoldMSEtrainSK_lasso[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, curr_lambda, reg_type)[1]
+            curr_lambda = curr_lambda/10
+        #self.kFoldMSEtestSK_lasso = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[0]
+        #self.kFoldMSEtrainSK_lasso = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[1]
 
         '''
         0. Change sigma from 1 to 0.1 (look into slides, it is noise standard deviation)
@@ -202,7 +223,7 @@ if __name__ == '__main__':
     
     The answer returns True for 'yes' and False for 'no'
     '''
-    sys.stdout.write('Do you want to use real data? ([y]/[n]) ')
+    sys.stdout.write('Do you want to use real data? (' + '\033[91m' + '[y]'+'\033[0m' +'/[n]) ')
     value = None
     while value == None:
         # User input - making it lower case
@@ -248,7 +269,13 @@ if __name__ == '__main__':
         confidence = 1.96
         sigma = 1
         # lasso very sensitive to this lambda parameter
-        lambda_par = 0.000001
+        sys.stdout.write("Please, choose the value of hyperparameter (lambda) (default = 0.001): ")
+        lambda_par = input()
+        if lambda_par == '':
+            lambda_par = 0.001
+        else:
+            lambda_par = float(lambda_par)
+        #lambda_par = 0.000001
         # just to save your value (e.g. png(s)) under correct prefix
         prefix = 'real'
         ''' Generating Data Set '''
@@ -295,7 +322,13 @@ if __name__ == '__main__':
         confidence = 1.96
         sigma = 1
         # lasso very sensitive to this lambda parameter
-        lambda_par = 0.000001
+        sys.stdout.write("Please, choose the value of hyperparameter (lambda) (default = 0.001): ")
+        lambda_par = input()
+        if lambda_par == '':
+            lambda_par = 0.001
+        else:
+            lambda_par = float(lambda_par)
+        #lambda_par = 0.000001
         # just to save your value (e.g. png(s)) under correct prefix
         prefix = 'fake'
         ''' Generating Data Set '''
@@ -334,6 +367,8 @@ if __name__ == '__main__':
         pipeline = MainPipeline(x_symb, x_vals, x, y, z, confidence, sigma, kfold,
                                 lambda_par, output_dir, prefix, poly_degree)
         pipeline.doRegression()
+
+        # getting the list of dictionaries
         # linear regression kfold
         kFoldMSEtest_lin.append(pipeline.kFoldMSEtest_lin)
         kFoldMSEtrain_lin.append(pipeline.kFoldMSEtrain_lin)
@@ -348,6 +383,10 @@ if __name__ == '__main__':
         kFoldMSEtestSK_lasso.append(pipeline.kFoldMSEtestSK_lasso)
         kFoldMSEtrainSK_lasso.append(pipeline.kFoldMSEtrainSK_lasso)
 
+    # Colors - randomly generating colors
+    np.random.seed(1)
+    test_colors = [np.random.rand(3,) for i in range(max_poly_degree)] # <= will generate random colors
+    train_colors = [np.random.rand(3,) for i in range(max_poly_degree)]
     # Turning interactive mode on
     #plt.ion()
     ''' MSE as a function of model complexity '''
@@ -360,15 +399,20 @@ if __name__ == '__main__':
     t = []
     [t.append(i) for i in range(1, max_poly_degree + 1)]
     # manual
-    ax1.plot(t, kFoldMSEtest_lin, 'bo', label='test')
-    ax1.plot(t, kFoldMSEtrain_lin, 'r--', label='train')
+    ax1.plot(t, kFoldMSEtest_lin, color = test_colors[0], marker='o', label='test')
+    ax1.plot(t, kFoldMSEtrain_lin, color = train_colors[0], linestyle='dashed', label='train')
     # scikit learn
-    ax2.plot(t, kFoldMSEtestSK_lin, 'bo', label='test')
-    ax2.plot(t, kFoldMSEtrainSK_lin, 'r--', label='train')
+    ax2.plot(t, kFoldMSEtestSK_lin, color = test_colors[0], marker='o', label='test')
+    ax2.plot(t, kFoldMSEtrainSK_lin, color = train_colors[0], linestyle='dashed', label='train')
     ax1.set_yscale('log')
     ax2.set_yscale('log')
-    ax1.legend()
-    ax2.legend()
+    # Shrink current axis by 20% - making legends appear to the right of the plot
+    box = ax1.get_position()
+    ax1.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    box = ax2.get_position()
+    ax2.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    # Put a legend to the right of the current axis
+    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     ax1.grid(True)
     ax2.grid(True)
     ax1.set_title('MSE as a function of model complexity; Linear Regression')
@@ -386,16 +430,45 @@ if __name__ == '__main__':
     ax2 = fig.add_subplot(2, 1, 2)
     t = []
     [t.append(i) for i in range(1, max_poly_degree + 1)]
-    # manual
-    ax1.plot(t, kFoldMSEtest_ridge, 'bo', label='test')
-    ax1.plot(t, kFoldMSEtrain_ridge, 'r--', label='train')
-    #scikit learn
-    ax2.plot(t, kFoldMSEtestSK_ridge, 'bo', label='test')
-    ax2.plot(t, kFoldMSEtrainSK_ridge, 'r--', label='train')
+    keylist = []
+    curr_lambda = 1
+    # creating a keylist to be able to convert
+    # a list of dictionaries to a list of lists
+    while curr_lambda >= lambda_par:
+        # the list of all lambdas
+        keylist.append(curr_lambda)
+        curr_lambda = curr_lambda/10
+    # Manual
+    # converting a list of dictionaries to a list of lists
+    # (index is the lambda value, i.e. we have a list: [[],[],[],...[]]
+    # where first sublist corresponds to a maximum lambda value - 1 -
+    # and the last sublist corresponds to the smallest lambda value - 0.001 (if default))
+    test_list = [[row[key] for row in kFoldMSEtest_ridge] for key in keylist]
+    train_list = [[row[key] for row in kFoldMSEtrain_ridge] for key in keylist]
+    # plotting different mse values for different lambda
+    for i in range(len(test_list)):
+        ax1.plot(t, test_list[i], color = test_colors[i], marker='o', label='$\lambda$='+str(keylist[i]) + ', test')
+        ax1.plot(t, train_list[i], color = train_colors[i], linestyle='dashed', label='$\lambda$='+str(keylist[i]) + ', train')
+    #ax1.plot(t, kFoldMSEtest_ridge, 'bo', label='test')
+    #ax1.plot(t, kFoldMSEtrain_ridge, 'r--', label='train')
+    # Scikit learn
+    test_list = [[row[key] for row in kFoldMSEtestSK_ridge] for key in keylist]
+    train_list = [[row[key] for row in kFoldMSEtrainSK_ridge] for key in keylist]
+    # plotting different mse values for different lambda
+    for i in range(len(test_list)):
+        ax2.plot(t, test_list[i], color = test_colors[i], marker='o', label='$\lambda$='+str(keylist[i]) + ', test')
+        ax2.plot(t, train_list[i], color = train_colors[i], linestyle='dashed', label='$\lambda$='+str(keylist[i]) + ', train')
+    #ax2.plot(t, kFoldMSEtestSK_ridge, 'bo', label='test')
+    #ax2.plot(t, kFoldMSEtrainSK_ridge, 'r--', label='train')
     ax1.set_yscale('log')
     ax2.set_yscale('log')
-    ax1.legend()
-    ax2.legend()
+    # Shrink current axis by 20%
+    box = ax1.get_position()
+    ax1.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    box = ax2.get_position()
+    ax2.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    # Put a legend to the right of the current axis
+    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     ax1.grid(True)
     ax2.grid(True)
     ax1.set_title('MSE as a function of model complexity; Ridge Regression')
@@ -412,10 +485,32 @@ if __name__ == '__main__':
     t = []
     [t.append(i) for i in range(1, max_poly_degree + 1)]
     # scikit learn
-    ax1.plot(t, kFoldMSEtestSK_lasso, 'bo', label='test')
-    ax1.plot(t, kFoldMSEtrainSK_lasso, 'r--', label='train')
+    keylist = []
+    curr_lambda = 1
+    # creating a keylist to be able to convert
+    # a list of dictionaries to a list of lists
+    while curr_lambda >= lambda_par:
+        keylist.append(curr_lambda)
+        curr_lambda = curr_lambda/10
+    # converting a list of dictionaries to a list of lists
+    # (index is the lambda value, i.e. we have a list: [[],[],[],...[]]
+    # where first sublist corresponds to a maximum lambda value - 1 -
+    # and the last sublist corresponds to the smallest lambda value - 0.001 (if default))
+    test_list = [[row[key] for row in kFoldMSEtestSK_lasso] for key in keylist]
+    train_list = [[row[key] for row in kFoldMSEtrainSK_lasso] for key in keylist]
+    # plotting different mse values for different lambda
+    for i in range(len(test_list)):
+        ax1.plot(t, test_list[i], color = test_colors[i], marker='o', label='$\lambda$='+str(keylist[i]) + ', test')
+        ax1.plot(t, train_list[i], color = train_colors[i], linestyle='dashed', label='$\lambda$='+str(keylist[i]) + ', train')
+    #print(test_list)
+
     ax1.set_yscale('log')
-    ax1.legend()
+    # Shrink current axis by 20%
+    box = ax1.get_position()
+    ax1.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    # Put a legend to the right of the current axis
+    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
     ax1.grid(True)
     ax1.set_title('MSE as a function of model complexity; Ridge Regression')
     plt.xlabel('model complexity (polynomial degree)')

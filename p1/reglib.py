@@ -379,7 +379,7 @@ class RegressionLibrary:
         filename = args[5]
         # Turning interactive mode on
         #plt.ion()
-        fig = plt.figure(figsize = (10, 3))
+        fig = plt.figure()#figsize = (10, 3))
         axe = fig.add_subplot(1, 1, 1)
         axe.plot(x, y, 'bo', label=r'$\beta$')
         axe.plot(x, y_min, 'r--', label=r'$\beta_{min}$')
