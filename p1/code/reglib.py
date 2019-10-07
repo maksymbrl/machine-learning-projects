@@ -96,6 +96,31 @@ class RegressionLibrary:
         p = np.random.permutation(len(a))
         return a[p], b[p]
 
+    # this one is from stack overflow - basically,
+    # np.array_split has an odd behavior when the data set is not symmetric;
+    # thus neded to find a better solution
+    def greedy_split(self, arr, n, axis=0):
+        """Greedily splits an array into n blocks.
+
+        Splits array arr along axis into n blocks such that:
+            - blocks 1 through n-1 are all the same size
+            - the sum of all block sizes is equal to arr.shape[axis]
+            - the last block is nonempty, and not bigger than the other blocks
+
+        Intuitively, this "greedily" splits the array along the axis by making
+        the first blocks as big as possible, then putting the leftovers in the
+        last block.
+        """
+        length = arr.shape[axis]
+
+        # compute the size of each of the first n-1 blocks
+        block_size = np.ceil(length / float(n))
+
+        # the indices at which the splits will occur
+        ix = np.arange(block_size, length, block_size)
+
+        return np.split(arr, ix, axis)
+
     # function to split data set manually
     def splitDataset(self, *args):
         # getting inputs
@@ -106,12 +131,17 @@ class RegressionLibrary:
         # shuffling dataset randomly
         # 1. Shuffling datasets randomly:
         X, z = self.shuffleDataSimultaneously(X, z)
+        #print(np.shape(X), np.shape(z))
         # 2. Split the dataset into k groups:
-        X_split = np.array_split(X, kfold)
-        z_split = np.array_split(z, kfold)
+        #X_split = np.array_split(X, kfold, axis=0)
+        #z_split = np.array_split(z, kfold, axis=0)
+        X_split = self.greedy_split(X, kfold)
+        z_split = self.greedy_split(z, kfold)
+        print(np.shape(X_split), np.shape(z_split))
         # train data set - making a copy of the shuffled and splitted arrays
         X_train = X_split.copy()
         z_train = z_split.copy()
+        print(np.shape(X_train), np.shape(z_train))
         # test data set - each time new element
         X_test = X_split[iterator]
         z_test = z_split[iterator]
@@ -129,8 +159,10 @@ class RegressionLibrary:
     def doCrossVal(self, *args):
         # getting design matrix
         X = args[0]
+        #print(np.shape(X))
         # getting z values and making them 1d
         z = np.ravel(args[1])
+        #print(np.shape(z))
         kfold = args[2]
         # Splitting and shuffling data randomly
         #X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1. / kfold, shuffle=True)
@@ -141,8 +173,10 @@ class RegressionLibrary:
         for i in range(kfold):
             #print(np.shape(X_train), np.shape(z_train))
             # Splitting and shuffling data randomly
-            #X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
-            X_train, X_test, z_train, z_test = self.splitDataset(X, z, kfold, i)
+            X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
+            #X_train, X_test, z_train, z_test = self.splitDataset(X, z, kfold, i)
+            #print(np.shape(X_train))
+            #print(np.shape(z_train))
             # Train The Pipeline
             invA = self.doSVD(X_train)
             beta_train = invA.dot(X_train.T).dot(z_train)
@@ -176,8 +210,8 @@ class RegressionLibrary:
         z_trained = []
         for i in range(kfold):
             # Splitting and shuffling data randomly
-            #X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
-            X_train, X_test, z_train, z_test = self.splitDataset(X, z, kfold, i)
+            X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
+            #X_train, X_test, z_train, z_test = self.splitDataset(X, z, kfold, i)
             # constructing the identity matrix
             I = np.identity(len(X_train.T.dot(X_train)), dtype=float)
             # Train The Pipeline
