@@ -1,0 +1,51 @@
+\documentclass[paper=a4, fontsize=12pt, svgnames]{scrartcl}
+
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amsfonts,amsthm,bm} % Math packages
+% to include graphics & make the path to images shorter
+\usepackage[pdftex]{graphicx}
+\graphicspath{{images/}}
+
+
+
+\newcommand{\be}[1]{\begin{equation}\label{#1}}
+\newcommand{\ee}{\end{equation}}
+\newcommand{\ba}[1]{\begin{eqnarray}\label{#1}}
+\newcommand{\ea}{\end{eqnarray}}
+\newcommand{\rf}[1]{(\ref{#1})}
+\newcommand{\angstrom}{\textup{\AA}}
+
+
+
+\title{Report for FYS-STK4155: Project 1}
+\author{maxim.brilenkov }
+\date{October 2019}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+    \textit{Abstract: accurate and informative? }
+    The abstract gives the reader a quick overview of what has been done and the most important results. Try to be to the point and state your main findings.
+    
+    In this work, I have written the code, which implements several regression algorithms, namely \textit{Linear Regression}, \textit{Ridge Regression} and \textit{LASSO regression}. Th code has been tested firstly on the artificial and then on the real data - Norwegian terrain.
+\end{abstract}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\include{body/introduction}
+
+\include{body/formalism}
+
+\include{body/code_imp}
+
+\include{body/results}
+
+\include{body/conclusions}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% References
+
+% Appendix (additional figures and codes)
+
+\end{document}

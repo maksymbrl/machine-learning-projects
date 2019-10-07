@@ -1,0 +1,25 @@
+\section{Introduction}
+\label{introduction}
+
+%\textit{Introduction: status of problem and the major objectives.}
+
+%When you write the introduction you could focus on the following aspects
+
+%Motivate the reader, the first part of the introduction gives always a motivation and tries to give the overarching ideas
+%What I have done
+%The structure of the report, how it is organized etc
+
+
+
+\textbf{Machine Learning} (ML) is a rapidly developing field of Science, which, in some cases (e.g. \textit{Optical character recognition}), has been around for decades already. However, it is impact on a various fields, such as: Technology, Humanities, Medicine, Law, Social sciences etc. cannot be overrated. Its applications ranges from development of self-driving cars (\ref{}) to solving complicated numerical problems (\ref{}) and thus are perceived by many as one of main tools in modern world. 
+
+But what is Machine learning? It can have a variety of definitions. O'Reilly \textit{et al} defines it as "\textit{the science (and art) of programming computers so they can learn from data}". (O'Reilly, Hands on machine Learning). Based on the data we have and the outcome we want to have, ML systems can be classified into several broad categories (\ref{} O'Reilly): 
+\begin{itemize}
+    \item \textit{Supervised}, \textit{unsupervised} or \textit{semi-supervised} ML algorithms. This approach describes whether or not the pipeline is trained with human interference/supervision; 
+    \item \textit{Online}/\textit{batch} learning. This approach describes whether or not they can learn incrementally on the fly;
+    \item \textit{Instance-based}/\textit{Model-based} learning. This approach describes whether they work by simply comparing new data points to known data points, or instead detect patterns in the training data and build a predictive model.
+\end{itemize}
+
+This entire project was based on the \textit{supervised} learning algorithms, where you have an input variable(s) (also known as \textit{features}/\textit{predictors}), $\bm{x}=[x_0, x_1, x_2,...x_{n-1}]^T$, and an output variable(s) (\textit{response}/\textit{outcome}), $\bm{y}=[y_0, y_1, y_2,...,y_{n-1}]^T$, and you use an algorithm to learn the mapping function from the input to the output $Y = f(X)$. Such a task is called \textit{regression} and in this report I have studied three different \textit{Linear Regression} algorithms - Polynomial, Ridge and LASSO regression. I will discuss, among other things, their advantages and disadvantages while fitting first set artificial (i.e. manually generated) and later set of real data (the Norwegian Terrain) and compare results with ML library - Scikit learn \ref{}(Ref. google?).
+
+The report organized as follows. In section \ref{formalism}, I briefly state the formalism of the problem. Section \ref{code_imp} explains the idea behind the code. Section \ref{results} I make the critical analysis of the results I obtained. The conclusions and summary is given in \ref{conclusions}. The code is listed in the end of this report.

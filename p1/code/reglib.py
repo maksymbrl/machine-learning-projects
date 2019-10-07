@@ -318,7 +318,7 @@ class RegressionLibrary:
 
         # calculating beta confidence
         confidence = args[2]  # 1.96
-        sigma = np.var(z)  # args[3] #1
+        sigma = np.var(z)#args[3]#np.var(z)  # args[3] #1
         SE = sigma * np.sqrt(np.diag(invA)) * confidence
         beta_min = beta - SE
         beta_max = beta + SE
@@ -353,7 +353,7 @@ class RegressionLibrary:
         # calculating beta confidence
         confidence = args[3]  # 1.96
         # calculating variance
-        sigma = np.var(z)  # args[4] #1
+        sigma = np.var(z)#args[4]#np.var(z)  # args[4] #1
         SE = sigma * np.sqrt(np.diag(invA)) * confidence
         beta_min = beta - SE
         beta_max = beta + SE
@@ -385,6 +385,8 @@ class RegressionLibrary:
         axe.plot(x, y_min, 'r--', label=r'$\beta_{min}$')
         axe.plot(x, y_max, 'g--', label=r'$\beta_{max}$')
         axe.legend()
+        # setting axes to log scale (to account for very high beta?)
+        #axe.set_yscale('log')
         plt.grid(True)
         plt.xlabel('number of ' + r'$\beta$')
         plt.ylabel(r'$\beta$')

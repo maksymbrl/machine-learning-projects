@@ -267,7 +267,7 @@ if __name__ == '__main__':
         kfold = 5
         # to calculate confidence intervals
         confidence = 1.96
-        sigma = 1
+        sigma = 0.1
         # lasso very sensitive to this lambda parameter
         sys.stdout.write("Please, choose the value of hyperparameter (lambda) (default = 0.001): ")
         lambda_par = input()

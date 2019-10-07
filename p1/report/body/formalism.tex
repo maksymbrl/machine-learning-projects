@@ -1,0 +1,110 @@
+\section{Formalism}
+\label{formalism}
+
+\textit{Formalism/methods: Discussion of the methods used and their basis/suitability.}
+
+
+Regression: Finding a functional relationship between an input data set and a reference data set. The goal is to construct a function that maps input data to continuous output values. (Ref. Lecture notes)
+
+\subsection{Polynomial regression}
+
+Since obtaining these data points may not be trivial, we want to use these data to fit a function which can allow us to make predictions for values of y which are not in the present set. The perhaps simplest approach is to assume we can parametrize our function in terms of a polynomial of degree n−1 with n points, that is (\ref{} lectures)
+\be{}
+y(x_i) = \tilde{y}_i + \epsilon_i=\sum_{j=0}^{n-1}\beta_jx_i^j+\epsilon_i\, ,
+\ee
+which can be written as (\ref{} lecture slides):
+\be{}
+\bm{y} = \bm{X\beta} + \bm{\epsilon}\, ,
+\ee
+where
+\be{}
+\bm{y} = [y_0,y_1,...,y_{n-1}]^T, \quad \bm{\beta} = [\beta_0,\beta_1,...,\beta_{n-1}]^T, \quad \bm{\epsilon} = [\epsilon_0,\epsilon_1,...,\epsilon_{n-1}]^T\, ,
+\ee
+\[
+\bm{X} =
+  \begin{bmatrix}
+    x_{00} & x_{01} & x_{02} & ... & x_{0,n-1} \\
+    x_{10} & x_{11} & x_{12} & ... & x_{1,n-1} \\
+    ... & ... & ... & ... & ... \\
+    x_{n-1,0} & x_{n-1,1} & x_{n-1,2} & ... & x_{n-1,n-1} \\
+  \end{bmatrix}
+\]
+The idea is to obtain an optimal set of $\beta_i$ values, which can fit best our current and future datasets. We do this by defining an approximation
+\be{}
+\bm{\tilde{y}}=\bm{X\beta}\, ,
+\ee
+and minimising the so-called \textit{cost function}
+\be{}
+\bm{C}(\bm{\beta}) = \frac{1}{n}\sum_{i=0}^{n-1}\left(y_i-\tilde{y}_i\right)=\frac{1}{n}\bm{\left\{\left(y-\tilde{y}\right)^T\left(y-\tilde{y}\right)\right\}}\, ,
+\ee
+which gives us the equations for desired parameters (\ref{} lecture notes)
+\be{}
+\bm{\beta} = \left(\bm{X^TX}\right)^{-1}\bm{X^Ty}\, .
+\ee
+Such an approach is based on the assumption that the matrix $\bm{X^TX}$ can be inverted (non-singular). This, however, is often not the case and the standard matrix inversion algorithm can often lead to singularities. One of approaches to avoid this is called \textbf{Singular Value Decomposition}, which allows us to rewrite $X$ in terms of an orthogonal/unitary transformation $U$ (\ref{} lecture notes)
+\be{}
+\bm{X}=\bm{U\Sigma V^T}\, ,
+\ee
+With this in mind, it can be shown that (\ref{} lecture notes)
+\be{}
+\bm{X\beta}=\bm{X}\left(\bm{VDV^T}\right)^{-1}\bm{X^Ty}=\bm{U\Sigma V^T}\left(\bm{VDV^T}\right)^{-1}\left(\bm{U\Sigma V^T}\right)^T\bm{y}=\bm{UU^Ty}\, .
+\ee
+Another approach is to simply add a small parameter
+\be{}
+\bm{X^TX}\rightarrow\bm{X^TX}+\bm{\lambda I}\, ,
+\ee
+which is basically what we end up with, while considering the so-called Ridge regression.
+\be{}
+\, ,
+\ee
+\be{}
+\, ,
+\ee
+\be{}
+\, ,
+\ee
+
+\subsection{Ridge regression}
+
+A cheap ad hoc approach is simply to add a small diagonal component to the matrix to invert, that is we change
+
+\subsection{LASSO regression}
+
+\subsection{Resampling Methods - Cross validation}
+Cross-validation is a statistical method used to estimate the skill of machine learning models.
+
+It is commonly used in applied machine learning to compare and select a model for a given predictive modeling problem because it is easy to understand, easy to implement, and results in skill estimates that generally have a lower bias than other methods.
+
+Cross-validation is a resampling procedure used to evaluate machine learning models on a limited data sample.
+
+The procedure has a single parameter called k that refers to the number of groups that a given data sample is to be split into. As such, the procedure is often called k-fold cross-validation. When a specific value for k is chosen, it may be used in place of k in the reference to the model, such as k=10 becoming 10-fold cross-validation.
+
+\textbf{Cross-validation} is primarily used in applied machine learning to estimate the skill of a machine learning model on unseen data. That is, to use a limited sample in order to estimate how the model is expected to perform in general when used to make predictions on data not used during the training of the model.
+
+It is a popular method because it is simple to understand and because it generally results in a less biased or less optimistic estimate of the model skill than other methods, such as a simple train/test split.
+
+The general procedure is as follows:
+
+Shuffle the dataset randomly.
+Split the dataset into k groups
+For each unique group:
+Take the group as a hold out or test data set
+Take the remaining groups as a training data set
+Fit a model on the training set and evaluate it on the test set
+Retain the evaluation score and discard the model
+Summarize the skill of the model using the sample of model evaluation scores
+
+
+
+Configuration of k
+The k value must be chosen carefully for your data sample.
+
+A poorly chosen value for k may result in a mis-representative idea of the skill of the model, such as a score with a high variance (that may change a lot based on the data used to fit the model), or a high bias, (such as an overestimate of the skill of the model).
+
+Three common tactics for choosing a value for k are as follows:
+
+Representative: The value for k is chosen such that each train/test group of data samples is large enough to be statistically representative of the broader dataset.
+k=10: The value for k is fixed to 10, a value that has been found through experimentation to generally result in a model skill estimate with low bias a modest variance.
+k=n: The value for k is fixed to n, where n is the size of the dataset to give each test sample an opportunity to be used in the hold out dataset. This approach is called leave-one-out cross-validation.
+
+\subsection{Bias-variance tradeoff}
