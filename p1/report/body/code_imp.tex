@@ -8,6 +8,200 @@
     \item You should plug in some calculations to demonstrate your code, such as selected runs used to validate and verify your results. The latter is extremely important!! A reader needs to understand that your code reproduces selected benchmarks and reproduces previous results, either numerical and/or well-known closed form expressions.
 \end{itemize}
 
+In this section I describe the various parts of the code I've written. It equally works for fake (manually generated) and real (Norwegian terrain) data sets. The whole folder structure can be viewed as follows:
+\begin{itemize}
+    \item reglib.py - small library, which contains all necessary methods to calculate $\beta$'s, MSE, CrossValidation and Bias-Variance trade-off;
+    \item regression.py - main module, which contains the entry point of the program together with calling procedures for the reglib.py library;
+\end{itemize}
+
+\tikzstyle{every node}=[draw=black,thick,anchor=west]
+\tikzstyle{selected}=[draw=red,fill=red!30]
+\tikzstyle{optional}=[dashed,fill=gray!50]
+\begin{center}
+\begin{tikzpicture}[
+  grow via three points={one child at (0.5, -0.7) and
+  two children at (0.5, -0.7) and (0.5,-1.4)},
+  edge from parent path={[->](\tikzparentnode.south) |- (\tikzchildnode.west)}]
+    \node {root}
+    child { node {regression.py}}		
+    child { node {reglib.py}}
+    child { node {Data}
+        child { node {$\mathrm{SRTM\_data\_Norway\_1.tif}$} }
+        child { node {$\mathrm{SRTM\_data\_Norway\_2.tif}$} }
+    }
+    % adding these to make some space
+    child [missing] {}				
+    child [missing] {}				
+    child { node {Output}
+        child { node {...} }
+    };
+\end{tikzpicture}
+\end{center}
+\begin{itemize}
+    \item \textbf{reglib.py} - small library, which contains all necessary methods to calculate $\beta$'s, MSE, CrossValidation and Bias-Variance trade-off;
+    \item \textbf{regression.py}  - main module, which contains the entry point of the program together with calling procedures for the reglib.py library;
+    \item \textbf{Data} - folder which contains the real data. Note: you do not necessarily need to copy the data files inside, but can use the full path in your OS;
+    \item \textbf{Output} - contains all the output files produced during the program run.
+\end{itemize}
+
+To obtain the program please navigate to the directory you want the program to be stored at with:
+\begin{lstlisting}
+cd /path/to/your/directory/
+\end{lstlisting}
+and simply clone the repository by typing:
+\begin{lstlisting}
+git clone https://github.com/maksymbr/machine-learning-projects.git
+\end{lstlisting}
+
+The script was written and tested with python 3.7. I was running it either through JupyterNotebook, Spider or PyCharm. But, it is possible to run it through terminal. Just locate to the directory with the script and type:
+\begin{lstlisting}
+python regression.py
+\end{lstlisting}
+
+After execution, you will be asked some questions about the data set and other parameters you want to use. In my opinion, it is quite quite simple to understand, so I will omit the tedious explanations here and will go straight to the code explanation.
+
+\subsection{Fake Data}
+
+The original idea was to write a program which, in principle, will be able to work with any amount of independent variables. For this I am using a sympy library to generate the \textit{symbolic} array of independent variables as:
+\begin{lstlisting}
+x_symb = sp.symarray('x', n_vars, real = True)
+\end{lstlisting}
+which will result in a list of variables $x_0$, $x_1$, $x_2$, ... $x_n$, where $n=\mathrm{n\_vars}$.
+
+For a given set of points, I am generating a set of values for the symbolic variables as follows:
+\begin{lstlisting}
+x_vals = x_symb.copy()
+for i in range(n_vars):
+    x_vals[i] = np.arange(0, 1, 1./N_points)
+\end{lstlisting}
+Because we are using Franke function (\ref{} lecture notes):
+\begin{lstlisting}
+def FrankeFunction(x,y):
+    term1 = 0.75*np.exp(-(0.25*(9*x-2)**2) - 0.25*((9*y-2)**2))
+    term2 = 0.75*np.exp(-((9*x+1)**2)/49.0 - 0.1*(9*y+1))
+    term3 = 0.5*np.exp(-(9*x-7)**2/4.0 - 0.25*((9*y-3)**2))
+    term4 = -0.2*np.exp(-(9*x-4)**2 - (9*y-7)**2)
+    return term1 + term2 + term3 + term4
+\end{lstlisting}
+I am generating the response as:
+\begin{lstlisting}
+import reglib as rl
+# library object instantiation
+lib = rl.RegressionLibrary(x_symb, x_vals)
+# setting up the grid
+x, y = np.meshgrid(x_vals[0], x_vals[1])
+# and getting output based on the Franke Function
+z = lib.FrankeFunction(x, y) + 0.1 * np.random.randn(N_points, N_points)
+\end{lstlisting}
+and, for each polynomial (up to specified max value), I am instantiating the pipeline, which calculates OLS, Ridge and LASSO regressions with several different hyper parameters
+\begin{lstlisting}
+for poly_degree in range(1, max_poly_degree+1):
+    print('\n')
+    print('Starting analysis for polynomial of degree: ' + str(poly_degree))
+    pipeline = MainPipeline(x_symb, x_vals, x, y, z, confidence, sigma, kfold, lambda_par, output_dir, prefix, poly_degree)
+    pipeline.doRegression()
+\end{lstlisting}
+
+\subsubsection{Design Matrix}
+To construct a proper design matrix, I first need to generate the polynomial for appropriate degree. I am doing this by using sympy and itertools library to account for all possible combinations of multiplications between our variables, $x_0$, $x_1$, and 1 (i.e.
+$x_0*x_1*1,$ $x_0*x_0*x_1*1$, ...) as:
+\begin{lstlisting}
+variables = list(self.x_symb.copy())
+variables.append(1)
+terms = [sp.Mul(*i) for i in it.combinations_with_replacement(variables, poly_degree)]
+\end{lstlisting}
+After that, I create the matrix and feed it with values, using lambdify method from sympy library:
+\begin{lstlisting}
+points = len(x_vals[0]) * len(x_vals[1])
+X1 = np.ones((points, len(terms)))
+for k in range(len(terms)):
+    f = sp.lambdify([self.x_symb[0], self.x_symb[1]], terms[k], "numpy")
+    X1[:, k] = [f(i, j) for i in self.x_vals[1] for j in self.x_vals[0]]
+\end{lstlisting}
+The whole method,which returns design matrix for a given polynomial degree is then:
+\begin{lstlisting}
+def constructDesignMatrix(self, *args):
+    # the degree of polynomial to be generated
+    poly_degree = args[0]
+    # getting inputs
+    x_vals = self.x_vals
+    # using itertools for generating all possible combinations
+    # of multiplications between our variables and 1, i.e.:
+    # x_0*x_1*1, x_0*x_0*x_1*1 etc. => will get polynomial
+    # coefficients
+    variables = list(self.x_symb.copy())
+    variables.append(1)
+    terms = [sp.Mul(*i) for i in it.combinations_with_replacement(variables, poly_degree)]
+    # creating desing matrix
+    points = len(x_vals[0]) * len(x_vals[1])
+    # creating desing matrix composed of ones
+    X1 = np.ones((points, len(terms)))
+    # populating design matrix with values
+    for k in range(len(terms)):
+        f = sp.lambdify([self.x_symb[0], self.x_symb[1]], terms[k], "numpy")
+        X1[:, k] = [f(i, j) for i in self.x_vals[1] for j in self.x_vals[0]]
+    # returning constructed design matrix (for 2 approaches if needed)
+    return X1
+\end{lstlisting}
+With this in hand, I proceed for regression analysis.
+
+\subsubsection{Linear Regression}
+The main method here is dolinearRegression, which returns predicted values, regression coefficients and confidence intervals for coefficients. It is based on the \textbf{Singular Value Decomposition} (code is taken from \ref{}):
+\begin{lstlisting}
+def doSVD(self, *args):
+    # getting matrix
+    X = args[0]
+    # Applying SVD
+    A = np.transpose(X) @ X
+    U, s, VT = np.linalg.svd(A)
+    D = np.zeros((len(U), len(VT)))
+    for i in range(0, len(VT)):
+        D[i, i] = s[i]
+    UT = np.transpose(U)
+    V = np.transpose(VT)
+    invD = np.linalg.inv(D)
+    invA = np.matmul(V, np.matmul(invD, UT))
+
+    return invA
+\end{lstlisting}
+and takes the generated design matrix and the responses (generated by Franke function) as its inputs:
+\begin{lstlisting}
+def doLinearRegression(self, *args):
+    # getting design matrix
+    X = args[0]
+    # getting z values and making them 1d
+    z = np.ravel(args[1])
+    # calculating variance of data
+
+    # and then make the prediction
+    invA = self.doSVD(X)
+    beta = invA.dot(X.T).dot(z)
+    ztilde = X @ beta
+
+    # calculating beta confidence
+    confidence = args[2]  # 1.96
+    sigma = np.var(z)#args[3]#np.var(z)  # args[3] #1
+    SE = sigma * np.sqrt(np.diag(invA)) * confidence
+    beta_min = beta - SE
+    beta_max = beta + SE
+
+    return ztilde, beta, beta_min, beta_max
+\end{lstlisting}
+For a given polynomial degree I get a set of $\beta$'s, which I plot and save inside "Output" folder
+
+\subsubsection{Ridge regression}
+
+The main method here is doRidgeRegression
+
+\subsubsection{LASSO}
+
+For LASSO regression I have used only the Scikit learn functionalities, similarly to the previous two cases. The code 
+
+\subsection{Real Data}
+
+
+\subsection{Bugs and fixes}
+
 
 
 

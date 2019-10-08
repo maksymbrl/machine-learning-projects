@@ -128,20 +128,32 @@ class RegressionLibrary:
         z = args[1]
         kfold = args[2]
         iterator = args[3]
-        # shuffling dataset randomly
-        # 1. Shuffling datasets randomly:
-        X, z = self.shuffleDataSimultaneously(X, z)
-        #print(np.shape(X), np.shape(z))
+        # If the dataset does not cleanly divide by the number of folds,
+        # there may be some remainder rows and they will not be used in the split.
+        length = len(X) % kfold
+        if length == 0:
+            condition = True
+        else:
+            condition = False
+        while condition is False:
+            # removing the element <= they were shuffled randomly,
+            # so it doesn't matter which one to remove
+            X = np.delete(X, -1, axis = 0)
+            z = np.delete(z, -1, axis = 0)
+            # checking whether it is divided cleanly
+            length = len(X) % kfold
+            if length == 0:
+                condition = True
         # 2. Split the dataset into k groups:
-        #X_split = np.array_split(X, kfold, axis=0)
-        #z_split = np.array_split(z, kfold, axis=0)
-        X_split = self.greedy_split(X, kfold)
-        z_split = self.greedy_split(z, kfold)
-        print(np.shape(X_split), np.shape(z_split))
+        X_split = np.array_split(X, kfold, axis=0)
+        z_split = np.array_split(z, kfold, axis=0)
+        #X_split = self.greedy_split(X, kfold)
+        #z_split = self.greedy_split(z, kfold)
+        #print(np.shape(X_split), np.shape(z_split))
         # train data set - making a copy of the shuffled and splitted arrays
         X_train = X_split.copy()
         z_train = z_split.copy()
-        print(np.shape(X_train), np.shape(z_train))
+        #print(np.shape(X_train), np.shape(z_train))
         # test data set - each time new element
         X_test = X_split[iterator]
         z_test = z_split[iterator]
@@ -170,11 +182,14 @@ class RegressionLibrary:
         MSEtrain_lintot = []
         z_tested = []
         z_trained = []
+        # shuffling dataset randomly
+        # 1. Shuffling datasets randomly:
+        X, z = self.shuffleDataSimultaneously(X, z)
+        # splitting data sets into the kfold and iterate over each of them
         for i in range(kfold):
-            #print(np.shape(X_train), np.shape(z_train))
             # Splitting and shuffling data randomly
-            X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
-            #X_train, X_test, z_train, z_test = self.splitDataset(X, z, kfold, i)
+            #X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
+            X_train, X_test, z_train, z_test = self.splitDataset(X, z, kfold, i)
             #print(np.shape(X_train))
             #print(np.shape(z_train))
             # Train The Pipeline
@@ -208,10 +223,13 @@ class RegressionLibrary:
         MSEtrain_ridgetot = []
         z_tested = []
         z_trained = []
+        # shuffling dataset randomly
+        # 1. Shuffling datasets randomly:
+        X, z = self.shuffleDataSimultaneously(X, z)
         for i in range(kfold):
             # Splitting and shuffling data randomly
-            X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
-            #X_train, X_test, z_train, z_test = self.splitDataset(X, z, kfold, i)
+            #X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
+            X_train, X_test, z_train, z_test = self.splitDataset(X, z, kfold, i)
             # constructing the identity matrix
             I = np.identity(len(X_train.T.dot(X_train)), dtype=float)
             # Train The Pipeline

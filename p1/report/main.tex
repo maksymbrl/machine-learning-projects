@@ -5,6 +5,12 @@
 % to include graphics & make the path to images shorter
 \usepackage[pdftex]{graphicx}
 \graphicspath{{images/}}
+% to write code with appropriate fonts
+\usepackage{listings}
+\usepackage{color}
+% to make colores in title page
+\usepackage{tikz}
+\usetikzlibrary{trees}
 
 
 
@@ -22,6 +28,26 @@
 \date{October 2019}
 
 \begin{document}
+
+
+\lstset{language=Python,
+ basicstyle=\ttfamily,
+ keywordstyle=\color{red},
+ commentstyle=\color{darkgreen},
+ morecomment=[l]{!},
+ showstringspaces=true,
+ frame=single,
+ basicstyle=\ttfamily\footnotesize,
+ breaklines=true,
+ postbreak=\raisebox{0ex}[0ex][0ex]{\ensuremath{\color{red}\hookrightarrow\space}},
+ %directivestyle=\color{magenta}\ttfamily,
+ emph={int,char,double,float,unsigned},
+ emphstyle=\color{blue},
+ firstnumber=1, % Line numbers start with line 1
+ stepnumber=5 % Line numbers go in steps of 5
+} 
+
+
 
 \maketitle
 
