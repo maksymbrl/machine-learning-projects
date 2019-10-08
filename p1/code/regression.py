@@ -156,7 +156,7 @@ class MainPipeline(object):
         [t.append(i) for i in range(1, len(beta_lin) + 1)]
         lib.plotBeta(t, beta_ridge, beta_min, beta_max, output_dir, filename)
         # Calculating k-Fold Cross Validation
-        curr_lambda = 1
+        curr_lambda = 0.1
         # parallel processing
         manager = mp.Manager()
         # making a dictionary of values which will save "mse mean value"
@@ -358,10 +358,10 @@ if __name__ == '__main__':
         confidence = 1.96
         sigma = 1
         # lasso very sensitive to this lambda parameter
-        sys.stdout.write("Please, choose the value of hyperparameter (lambda) (default = 0.001): ")
+        sys.stdout.write("Please, choose the value of hyperparameter (lambda) (default = 0.0001): ")
         lambda_par = input()
         if lambda_par == '':
-            lambda_par = 0.001
+            lambda_par = 0.0001
         else:
             lambda_par = float(lambda_par)
         #lambda_par = 0.000001
