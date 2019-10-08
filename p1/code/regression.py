@@ -82,6 +82,8 @@ class MainPipeline(object):
     def doRegression(self, *args):
         # amount of processors to use
         nproc = args[0]
+        # for plotting betas (this valu will appear in the file name <= doesn't affect calculations)
+        npoints_name = args[1]
         # library object instantiation
         lib = rl.RegressionLibrary(self.x_symb, self.x_vals)
         # raveling variables (making them 1d
@@ -114,11 +116,11 @@ class MainPipeline(object):
         print("Linear R^2 (no CV) - " + str(lib.getR2(zarray_lin[0], zarray_lin[1])) + "; sklearn - " + str(lin_reg.score(X_poly, z_rav)))
         print('\n')
         ''' Plotting Surfaces '''
-        filename = self.prefix + '_linear_p' + str(self.poly_degree).zfill(2) + '.png'
+        filename = self.prefix + '_linear_p' + str(self.poly_degree).zfill(2) + '_n' + npoints_name +'.png'
         # calling method from library to do this for us
         lib.plotSurface(self.x, self.y, zarray_lin, self.output_dir, filename)
         # betas
-        filename = self.prefix + '_linear_beta_p' + str(self.poly_degree).zfill(2) + '.png'
+        filename = self.prefix + '_linear_beta_p' + str(self.poly_degree).zfill(2) + '_n' + npoints_name + '.png'
         t = []
         [t.append(i) for i in range(1, len(beta_lin) + 1)]
         lib.plotBeta(t, beta_lin, beta_min, beta_max, output_dir, filename)
@@ -146,20 +148,18 @@ class MainPipeline(object):
         print("Ridge R^2 (no CV) - " + str(lib.getR2(zarray_ridge[0], zarray_ridge[1])) + "; sklearn - " + str(ridge_reg.score(X_poly, z_rav)))
         print('\n')
         ''' Plotting Surfaces '''
-        filename = self.prefix + '_ridge_p' + str(self.poly_degree).zfill(2) + '.png'
+        filename = self.prefix + '_ridge_p' + str(self.poly_degree).zfill(2) + '_n' + npoints_name + '.png'
         lib.plotSurface(self.x, self.y, zarray_ridge, self.output_dir, filename)
         # betas
-        filename = self.prefix + '_ridge_beta_p' + str(self.poly_degree).zfill(2) + '.png'
+        filename = self.prefix + '_ridge_beta_p' + str(self.poly_degree).zfill(2) + '_n' + npoints_name + '.png'
         t = []
         [t.append(i) for i in range(1, len(beta_lin) + 1)]
         lib.plotBeta(t, beta_ridge, beta_min, beta_max, output_dir, filename)
         # Calculating k-Fold Cross Validation
-        # making a dictionary of values which will save "mse mean value"
-        #self.kFoldMSEtest_ridge = {}
-        #self.kFoldMSEtrain_ridge = {}
         curr_lambda = 1
         # parallel processing
         manager = mp.Manager()
+        # making a dictionary of values which will save "mse mean value"
         self.kFoldMSEtest_ridge = manager.dict()
         self.kFoldMSEtrain_ridge = manager.dict()
         lambdas = []
@@ -175,22 +175,12 @@ class MainPipeline(object):
             # and exit!
             return
         #nproc = mp.cpu_count()-1
-        Parallel(n_jobs = nproc)(delayed(doMultiproc1)(self.kFoldMSEtest_ridge, self.kFoldMSEtrain_ridge,
+        Parallel(n_jobs = nproc, backend="threading", verbose = 1)(delayed(doMultiproc1)(self.kFoldMSEtest_ridge, self.kFoldMSEtrain_ridge,
                                                        lib, X, self.z, self.kfold, curr_lambda) for curr_lambda in lambdas)
-        #while curr_lambda >= self.lambda_par:
-        #    print('Ridge \n')
-        #    print("Starting to calculate for $\lambda$=%s" %curr_lambda + '\n')
-        #    self.kFoldMSEtest_ridge[curr_lambda] = lib.doCrossValRidge(X, self.z, self.kfold, curr_lambda)[0]
-        #    self.kFoldMSEtrain_ridge[curr_lambda] = lib.doCrossValRidge(X, self.z, self.kfold, curr_lambda)[1]
-        #    curr_lambda = curr_lambda/10
-
         ''' Scikit Learn '''
         # chosing the type of regression
         reg_type = 'ridge'
         # making a dictionary of values which will save "mse mean value"
-        #self.kFoldMSEtestSK_ridge = {}
-        #self.kFoldMSEtrainSK_ridge = {}
-        #curr_lambda = 1
         # parallel processing
         #manager = mp.Manager()
         self.kFoldMSEtestSK_ridge = manager.dict()
@@ -203,15 +193,9 @@ class MainPipeline(object):
             kFoldMSEtrainSK_ridge[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type)[1]
             # and exit!
             return
-        Parallel(n_jobs = nproc)(delayed(doMultiproc2)(self.kFoldMSEtestSK_ridge, self.kFoldMSEtrainSK_ridge, lib, X_poly,
+        Parallel(n_jobs = nproc, backend="threading", verbose = 1)(delayed(doMultiproc2)(self.kFoldMSEtestSK_ridge, self.kFoldMSEtrainSK_ridge, lib, X_poly,
                                                        z_rav, self.kfold, self.poly_degree, curr_lambda, reg_type)
                                                        for curr_lambda in lambdas)
-        #while curr_lambda >= self.lambda_par:
-        #    print('Ridge \n')
-        #    print("Starting to calculate for $\lambda$=%s" %curr_lambda + '\n')
-        #    self.kFoldMSEtestSK_ridge[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, curr_lambda, reg_type)[0]
-        #    self.kFoldMSEtrainSK_ridge[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, curr_lambda, reg_type)[1]
-        #    curr_lambda = curr_lambda/10
 
         #==============================================================================================================#
         ''' LASSO Regression '''
@@ -225,22 +209,14 @@ class MainPipeline(object):
         print("SL Lasso R^2 (no CV) - " + str(lasso_reg.score(X_poly, z_rav)))
         print('\n')
         ''' Plotting Surfaces '''
-        filename = self.prefix + '_lasso_p' + str(self.poly_degree).zfill(2) + '.png'
+        filename = self.prefix + '_lasso_p' + str(self.poly_degree).zfill(2) + '_n'+ npoints + '.png'
         lib.plotSurface(self.x, self.y, zarray_lasso, self.output_dir, filename)
         # k-fold - studying the dependence on lambda
         reg_type = 'lasso'
-        # making a dictionary of values which will save "mse mean value"
-        #self.kFoldMSEtestSK_lasso = {}
-        #self.kFoldMSEtrainSK_lasso = {}
-        #curr_lambda = 1
         # parallel processing
-        #manager = mp.Manager()
+        # making a dictionary of values which will save "mse mean value"
         self.kFoldMSEtestSK_lasso = manager.dict()
         self.kFoldMSEtrainSK_lasso = manager.dict()
-        #lambdas = []
-        #while curr_lambda >= self.lambda_par:
-        #    lambdas.append(curr_lambda)
-        #    curr_lambda = curr_lambda/10
         # creating a method to work with dictionaries
         def doMultiproc3(kFoldMSEtestSK_lasso, kFoldMSEtrainSK_lasso, lib, X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type):
             print('Lasso Scikit Learn \n')
@@ -249,17 +225,9 @@ class MainPipeline(object):
             kFoldMSEtrainSK_lasso[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type)[1]
             # and exit!
             return
-        #nproc = mp.cpu_count()-1
-        Parallel(n_jobs = nproc)(delayed(doMultiproc3)(self.kFoldMSEtestSK_lasso, self.kFoldMSEtrainSK_lasso, lib, X_poly,
+        Parallel(n_jobs = nproc, backend="threading", verbose = 1)(delayed(doMultiproc3)(self.kFoldMSEtestSK_lasso, self.kFoldMSEtrainSK_lasso, lib, X_poly,
                                                     z_rav, self.kfold, self.poly_degree, curr_lambda, reg_type)
                                                     for curr_lambda in lambdas)
-
-        #while curr_lambda >= self.lambda_par:
-        #    self.kFoldMSEtestSK_lasso[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, curr_lambda, reg_type)[0]
-        #    self.kFoldMSEtrainSK_lasso[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, curr_lambda, reg_type)[1]
-        #    curr_lambda = curr_lambda/10
-        #self.kFoldMSEtestSK_lasso = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[0]
-        #self.kFoldMSEtrainSK_lasso = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[1]
 
 
 if __name__ == '__main__':
@@ -416,9 +384,6 @@ if __name__ == '__main__':
         z = lib.FrankeFunction(x, y) + 0.1 * np.random.randn(N_points, N_points)
 
     # To plot MSE from kFold Cross Validation
-#    global kFoldMSEtest_lin, kFoldMSEtrain_lin, kFoldMSEtestSK_lin, kFoldMSEtrainSK_lin
-#    global kFoldMSEtest_ridge, kFoldMSEtrain_ridge, kFoldMSEtestSK_ridge, kFoldMSEtrainSK_ridge
-#    global kFoldMSEtestSK_lasso, kFoldMSEtrainSK_lasso
     kFoldMSEtest_lin      = []#[None] * max_poly_degree
     kFoldMSEtrain_lin     = []#[None] * max_poly_degree
     kFoldMSEtestSK_lin    = []#[None] * max_poly_degree
@@ -431,60 +396,14 @@ if __name__ == '__main__':
 
     kFoldMSEtestSK_lasso  = []#[None] * max_poly_degree
     kFoldMSEtrainSK_lasso = []#[None] * max_poly_degree
-    # making method for multiprocessing
-#    def doMultiproc(poly_degree):
-        #
-#        print('\n')
-#        print('Starting analysis for polynomial of degree: ' + str(poly_degree+1))
-#        pipeline = MainPipeline(x_symb, x_vals, x, y, z, confidence, sigma, kfold,
-#                                lambda_par, output_dir, prefix, poly_degree+1)
-#        pipeline.doRegression()
-        # getting the list of dictionaries
-        #global kFoldMSEtest_lin, kFoldMSEtrain_lin, kFoldMSEtestSK_lin, kFoldMSEtrainSK_lin
-        #global kFoldMSEtest_ridge, kFoldMSEtrain_ridge, kFoldMSEtestSK_ridge, kFoldMSEtrainSK_ridge
-        #global kFoldMSEtestSK_lasso, kFoldMSEtrainSK_lasso
-        # linear regression kfold
-        #kFoldMSEtest_lin[poly_degree] = pipeline.kFoldMSEtest_lin
-        #kFoldMSEtrain_lin[poly_degree] = pipeline.kFoldMSEtrain_lin
-        #kFoldMSEtestSK_lin[poly_degree] = pipeline.kFoldMSEtestSK_lin
-        #kFoldMSEtrainSK_lin[poly_degree] = pipeline.kFoldMSEtrainSK_lin
-        # ridge regression kfold
-        #kFoldMSEtest_ridge[poly_degree] = pipeline.kFoldMSEtest_ridge
-        #kFoldMSEtrain_ridge[poly_degree] = pipeline.kFoldMSEtrain_ridge
-        #kFoldMSEtestSK_ridge[poly_degree] = pipeline.kFoldMSEtestSK_ridge
-        #kFoldMSEtrainSK_ridge[poly_degree] = pipeline.kFoldMSEtrainSK_ridge
-        # lasso regression kfold
-        #kFoldMSEtestSK_lasso[poly_degree] = pipeline.kFoldMSEtestSK_lasso
-        #kFoldMSEtrainSK_lasso[poly_degree] = pipeline.kFoldMSEtrainSK_lasso
 
-#        a = pipeline.kFoldMSEtest_lin
-#        b = pipeline.kFoldMSEtrain_lin
-#        c = pipeline.kFoldMSEtestSK_lin
-#        d = pipeline.kFoldMSEtrainSK_lin
-        # ridge regression kfold
-#        e = pipeline.kFoldMSEtest_ridge
-#        f = pipeline.kFoldMSEtrain_ridge
-#        g = pipeline.kFoldMSEtestSK_ridge
-#        h = pipeline.kFoldMSEtrainSK_ridge
-        # lasso regression kfold
-#        i = pipeline.kFoldMSEtestSK_lasso
-#        j = pipeline.kFoldMSEtrainSK_lasso
-
-#        return (a, b, c, d, e, f, g, h, i, j)
-
-        #return (pipeline.kFoldMSEtest_lin, pipeline.kFoldMSEtrain_lin)
-
-#    results = Parallel(n_jobs = 3)(delayed(doMultiproc)(poly_degree) for poly_degree in range(max_poly_degree))
-
-#    print(len(results))
-    #print(kFoldMSEtrainSK_lasso)
-    # looping through all polynomial degrees
-    #for poly_degree in range(1, max_poly_degree+1):
-        #print('\n')
-        #print('Starting analysis for polynomial of degree: ' + str(poly_degree))
-        #pipeline = MainPipeline(x_symb, x_vals, x, y, z, confidence, sigma, kfold,
-        #                        lambda_par, output_dir, prefix, poly_degree)
-        #pipeline.doRegression()
+    # to better classify output plots, I am adding
+    # the amount of points, the png was generated for
+    # (if it is a real data => then we get 'real' in the name)
+    if prefix == 'real':
+        npoints = 'real'
+    elif prefix == 'fake':
+        npoints = str(N_points)
 
     # looping through all polynomial degrees
     for poly_degree in range(1, max_poly_degree+1):
@@ -492,7 +411,7 @@ if __name__ == '__main__':
         print('Starting analysis for polynomial of degree: ' + str(poly_degree))
         pipeline = MainPipeline(x_symb, x_vals, x, y, z, confidence, sigma, kfold,
         lambda_par, output_dir, prefix, poly_degree)
-        pipeline.doRegression(nproc)
+        pipeline.doRegression(nproc, npoints)
 
         # getting the list of dictionaries
         # linear regression kfold
@@ -521,7 +440,7 @@ if __name__ == '__main__':
     ''' MSE as a function of model complexity '''
     # plotting MSE from test data
     # Linear Regression
-    filename = prefix + '_linear_mse_p' + str(max_poly_degree).zfill(2) + '.png'
+    filename = prefix + '_linear_mse_p' + str(max_poly_degree).zfill(2) + '_n'+ npoints + '.png'
     fig = plt.figure()
     ax1 = fig.add_subplot(2, 1, 1)
     ax2 = fig.add_subplot(2, 1, 2)
@@ -545,7 +464,6 @@ if __name__ == '__main__':
     ax1.grid(True)
     ax2.grid(True)
     ax1.set_title('MSE as a function of model complexity; Linear Regression')
-    #plt.title('MSE as a function of model complexity; Linear Regression')
     plt.xlabel('model complexity (polynomial degree)')
     ax1.set_ylabel('MSE')
     ax2.set_ylabel('MSE')
@@ -553,7 +471,7 @@ if __name__ == '__main__':
     plt.close(fig)
 
     # Ridge Regression
-    filename = prefix + '_ridge_mse_p' + str(max_poly_degree).zfill(2) + '.png'
+    filename = prefix + '_ridge_mse_p' + str(max_poly_degree).zfill(2) + '_n'+ npoints +'.png'
     fig = plt.figure()
     ax1 = fig.add_subplot(2, 1, 1)
     ax2 = fig.add_subplot(2, 1, 2)
@@ -578,8 +496,6 @@ if __name__ == '__main__':
     for i in range(len(test_list)):
         ax1.plot(t, test_list[i], color = test_colors[i], marker='o', label='$\lambda$='+str(keylist[i]) + ', test')
         ax1.plot(t, train_list[i], color = train_colors[i], linestyle='dashed', label='$\lambda$='+str(keylist[i]) + ', train')
-    #ax1.plot(t, kFoldMSEtest_ridge, 'bo', label='test')
-    #ax1.plot(t, kFoldMSEtrain_ridge, 'r--', label='train')
     # Scikit learn
     test_list = [[row[key] for row in kFoldMSEtestSK_ridge] for key in keylist]
     train_list = [[row[key] for row in kFoldMSEtrainSK_ridge] for key in keylist]
@@ -587,8 +503,6 @@ if __name__ == '__main__':
     for i in range(len(test_list)):
         ax2.plot(t, test_list[i], color = test_colors[i], marker='o', label='$\lambda$='+str(keylist[i]) + ', test')
         ax2.plot(t, train_list[i], color = train_colors[i], linestyle='dashed', label='$\lambda$='+str(keylist[i]) + ', train')
-    #ax2.plot(t, kFoldMSEtestSK_ridge, 'bo', label='test')
-    #ax2.plot(t, kFoldMSEtrainSK_ridge, 'r--', label='train')
     ax1.set_yscale('log')
     ax2.set_yscale('log')
     # Shrink current axis by 20%
@@ -608,7 +522,7 @@ if __name__ == '__main__':
     plt.close(fig)
 
     # LASSO regression
-    filename = prefix + '_lasso_mse_p' + str(max_poly_degree).zfill(2) + '.png'
+    filename = prefix + '_lasso_mse_p' + str(max_poly_degree).zfill(2) + '_n'+ npoints +'.png'
     fig = plt.figure()
     ax1 = fig.add_subplot(1, 1, 1)
     t = []
@@ -631,15 +545,12 @@ if __name__ == '__main__':
     for i in range(len(test_list)):
         ax1.plot(t, test_list[i], color = test_colors[i], marker='o', label='$\lambda$='+str(keylist[i]) + ', test')
         ax1.plot(t, train_list[i], color = train_colors[i], linestyle='dashed', label='$\lambda$='+str(keylist[i]) + ', train')
-    #print(test_list)
-
     ax1.set_yscale('log')
     # Shrink current axis by 20%
     box = ax1.get_position()
     ax1.set_position([box.x0, box.y0, box.width * 0.8, box.height])
     # Put a legend to the right of the current axis
     ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-
     ax1.grid(True)
     ax1.set_title('MSE as a function of model complexity; Ridge Regression')
     plt.xlabel('model complexity (polynomial degree)')

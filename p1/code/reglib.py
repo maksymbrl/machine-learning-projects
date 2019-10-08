@@ -96,31 +96,6 @@ class RegressionLibrary:
         p = np.random.permutation(len(a))
         return a[p], b[p]
 
-    # this one is from stack overflow - basically,
-    # np.array_split has an odd behavior when the data set is not symmetric;
-    # thus neded to find a better solution
-    def greedy_split(self, arr, n, axis=0):
-        """Greedily splits an array into n blocks.
-
-        Splits array arr along axis into n blocks such that:
-            - blocks 1 through n-1 are all the same size
-            - the sum of all block sizes is equal to arr.shape[axis]
-            - the last block is nonempty, and not bigger than the other blocks
-
-        Intuitively, this "greedily" splits the array along the axis by making
-        the first blocks as big as possible, then putting the leftovers in the
-        last block.
-        """
-        length = arr.shape[axis]
-
-        # compute the size of each of the first n-1 blocks
-        block_size = np.ceil(length / float(n))
-
-        # the indices at which the splits will occur
-        ix = np.arange(block_size, length, block_size)
-
-        return np.split(arr, ix, axis)
-
     # function to split data set manually
     def splitDataset(self, *args):
         # getting inputs
@@ -147,13 +122,9 @@ class RegressionLibrary:
         # 2. Split the dataset into k groups:
         X_split = np.array_split(X, kfold, axis=0)
         z_split = np.array_split(z, kfold, axis=0)
-        #X_split = self.greedy_split(X, kfold)
-        #z_split = self.greedy_split(z, kfold)
-        #print(np.shape(X_split), np.shape(z_split))
         # train data set - making a copy of the shuffled and splitted arrays
         X_train = X_split.copy()
         z_train = z_split.copy()
-        #print(np.shape(X_train), np.shape(z_train))
         # test data set - each time new element
         X_test = X_split[iterator]
         z_test = z_split[iterator]
@@ -171,10 +142,8 @@ class RegressionLibrary:
     def doCrossVal(self, *args):
         # getting design matrix
         X = args[0]
-        #print(np.shape(X))
         # getting z values and making them 1d
         z = np.ravel(args[1])
-        #print(np.shape(z))
         kfold = args[2]
         # Splitting and shuffling data randomly
         #X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1. / kfold, shuffle=True)
@@ -190,13 +159,9 @@ class RegressionLibrary:
             # Splitting and shuffling data randomly
             #X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
             X_train, X_test, z_train, z_test = self.splitDataset(X, z, kfold, i)
-            #print(np.shape(X_train))
-            #print(np.shape(z_train))
             # Train The Pipeline
             invA = self.doSVD(X_train)
             beta_train = invA.dot(X_train.T).dot(z_train)
-            # invA = self.doSVD(X_test)
-            # beta_test = invA.dot(X_test.T).dot(z_test)
             # Testing the pipeline
             z_trained.append(X_train @ beta_train)
             z_tested.append(X_test @ beta_train)
@@ -236,8 +201,6 @@ class RegressionLibrary:
             # calculating parameters
             invA = np.linalg.inv(X_train.T.dot(X_train) + lambda_par * I)
             beta_train = invA.dot(X_train.T).dot(z_train)
-            # invA = self.doSVD(X_test)
-            # beta_test = invA.dot(X_test.T).dot(z_test)
             # Testing the pipeline
             z_trained.append(X_train @ beta_train)
             z_tested.append(X_test @ beta_train)
@@ -311,9 +274,6 @@ class RegressionLibrary:
 
         # returning MSE, bias and variance for  a given polynomial degree
         return MSEtest_mean, MSEtrain_mean
-        #model = make_pipeline(PolynomialFeatures(degree = deg), LinearRegression(fit_intercept=False))
-
-        #splitting dataset
 
     ''' 
     Confidence intervals for beta
@@ -367,7 +327,6 @@ class RegressionLibrary:
         invA = self.doSVD(X)
         beta = invA.dot(X.T).dot(z)
         ztilde = X @ beta
-
         # calculating beta confidence
         confidence = args[2]  # 1.96
         sigma = np.var(z)#args[3]#np.var(z)  # args[3] #1
@@ -382,11 +341,6 @@ class RegressionLibrary:
     '''
 
     def doRidgeRegression(self, *args):
-        # Generating the 500 values of lambda
-        # to tune our model (i.e. we will calculate scores
-        # and decide which parameter lambda is best suited for our model)
-        # nlambdas = 500
-        # lambdas = np.logspace(-3, 5, nlambdas)
         # getting design matrix
         X = args[0]
         # getting z values
