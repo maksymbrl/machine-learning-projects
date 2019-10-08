@@ -298,10 +298,10 @@ if __name__ == '__main__':
         confidence = 1.96
         sigma = 0.1
         # lasso very sensitive to this lambda parameter
-        sys.stdout.write("Please, choose the value of hyperparameter (lambda) (default = 0.001): ")
+        sys.stdout.write("Please, choose the value of hyperparameter (lambda) (default = 0.0001): ")
         lambda_par = input()
         if lambda_par == '':
-            lambda_par = 0.001
+            lambda_par = 0.0001
         else:
             lambda_par = float(lambda_par)
         #lambda_par = 0.000001
