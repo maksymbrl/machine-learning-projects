@@ -191,11 +191,98 @@ For a given polynomial degree I get a set of $\beta$'s, which I plot and save in
 
 \subsubsection{Ridge regression}
 
-The main method here is doRidgeRegression
+The main method here is doRidgeRegression. It works similarly to the doLinearRegression method, but it takes one more input - hyper parameter:
+\begin{lstlisting}
+lambda_par = args[2]
+\end{lstlisting}
+and constructs the identity matrix as:
+\begin{lstlisting}
+XTX = X.T.dot(X)
+I = np.identity(len(XTX), dtype=float)
+\end{lstlisting}
+which allows calculation of $\beta$'s as:
+\begin{lstlisting}
+invA = np.linalg.inv(XTX + lambda_par * I)
+beta = invA.dot(X.T).dot(z)
+\end{lstlisting}
+Thus the entire method is
+\begin{lstlisting}
+def doRidgeRegression(self, *args):
+    # getting design matrix
+    X = args[0]
+    # getting z values
+    z = np.ravel(args[1])
+    # hyper parameter
+    lambda_par = args[2]
+    # constructing the identity matrix
+    XTX = X.T.dot(X)
+    I = np.identity(len(XTX), dtype=float)
+    # calculating parameters
+    invA = np.linalg.inv(XTX + lambda_par * I)
+    beta = invA.dot(X.T).dot(z)
+    # and making predictions
+    ztilde = X @ beta
+    # calculating beta confidence
+    confidence = args[3]  # 1.96
+    # calculating variance
+    sigma = np.var(z)#args[4]#np.var(z)  # args[4] #1
+    SE = sigma * np.sqrt(np.diag(invA)) * confidence
+    beta_min = beta - SE
+    beta_max = beta + SE
+
+    return ztilde, beta, beta_min, beta_max
+\end{lstlisting}
 
 \subsubsection{LASSO}
 
-For LASSO regression I have used only the Scikit learn functionalities, similarly to the previous two cases. The code 
+For LASSO regression I have used only the Scikit learn functionalities:
+\begin{lstlisting}
+lasso_reg = Lasso(alpha=self.lambda_par).fit(X_poly, z_rav)
+ztilde_sk = lasso_reg.predict(X_poly).reshape(zshape)
+\end{lstlisting}
+
+\subsubsection{Cross Validation}
+Because the original task for Linear Regression analysis was split into several parts, I wrote code for k-Fold cross validation as a separate method.
+
+Instead of two groups, we must return k-folds or k groups of data.
+
+If the dataset does not cleanly divide by the number of folds, there may be some remainder rows and they will not be used in the split.
+\begin{lstlisting}
+def doCrossVal(self, *args):
+    # getting design matrix
+    X = args[0]
+    # getting z values and making them 1d
+    z = np.ravel(args[1])
+    kfold = args[2]
+    MSEtest_lintot = []
+    MSEtrain_lintot = []
+    z_tested = []
+    z_trained = []
+    for i in range(kfold):
+        # Splitting and shuffling data randomly
+        X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
+        # Train The Pipeline
+        invA = self.doSVD(X_train)
+        beta_train = invA.dot(X_train.T).dot(z_train)
+        # Testing the pipeline
+        z_trained.append(X_train @ beta_train)
+        z_tested.append(X_test @ beta_train)
+        # Calculating MSE for each iteration
+        MSEtest_lintot.append(self.getMSE(z_test, z_tested[i]))
+        MSEtrain_lintot.append(self.getMSE(z_train, z_trained[i]))
+    # linear MSE
+    MSEtest_lin = np.mean(MSEtest_lintot)
+    MSEtrain_lin = np.mean(MSEtrain_lintot)
+
+    return MSEtest_lin, MSEtrain_lin
+\end{lstlisting}
+
+\begin{lstlisting}
+
+\end{lstlisting}
+\begin{lstlisting}
+
+\end{lstlisting}
 
 \subsection{Real Data}
 
