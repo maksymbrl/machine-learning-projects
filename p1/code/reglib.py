@@ -145,8 +145,6 @@ class RegressionLibrary:
         # getting z values and making them 1d
         z = np.ravel(args[1])
         kfold = args[2]
-        # Splitting and shuffling data randomly
-        #X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1. / kfold, shuffle=True)
         MSEtest_lintot = []
         MSEtrain_lintot = []
         z_tested = []
@@ -160,7 +158,6 @@ class RegressionLibrary:
         # splitting data sets into the kfold and iterate over each of them
         for i in range(kfold):
             # Splitting and shuffling data randomly
-            #X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
             X_train, X_test, z_train, z_test = self.splitDataset(X, z, kfold, i)
             z_t.append(z_test)
             # Train The Pipeline
