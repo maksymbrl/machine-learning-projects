@@ -145,6 +145,8 @@ class RegressionLibrary:
         # getting z values and making them 1d
         z = np.ravel(args[1])
         kfold = args[2]
+        # Splitting and shuffling data randomly
+        #X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1. / kfold, shuffle=True)
         MSEtest_lintot = []
         MSEtrain_lintot = []
         z_tested = []
@@ -158,6 +160,7 @@ class RegressionLibrary:
         # splitting data sets into the kfold and iterate over each of them
         for i in range(kfold):
             # Splitting and shuffling data randomly
+            #X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
             X_train, X_test, z_train, z_test = self.splitDataset(X, z, kfold, i)
             z_t.append(z_test)
             # Train The Pipeline
@@ -247,7 +250,7 @@ class RegressionLibrary:
         elif reg_type == 'ridge':
             model = Ridge(alpha = lambda_par, fit_intercept = False)
         elif reg_type == 'lasso':
-            model = Lasso(alpha = lambda_par)
+            model = Lasso(alpha = lambda_par, normalize=True)
         else:
             print("Houston, we've got a problem!")
 
@@ -370,7 +373,7 @@ class RegressionLibrary:
         # calculating beta confidence
         confidence = args[3]  # 1.96
         # calculating variance
-        sigma = np.var(z)#args[4]#np.var(z)  # args[4] #1
+        sigma = args[4]#np.var(z)  # args[4] #1
         SE = sigma * np.sqrt(np.diag(invA)) * confidence
         beta_min = beta - SE
         beta_max = beta + SE
