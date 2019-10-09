@@ -84,6 +84,7 @@ class MainPipeline(object):
         nproc = args[0]
         # for plotting betas (this valu will appear in the file name <= doesn't affect calculations)
         npoints_name = args[1]
+        curr_lambda = args[2]
         # library object instantiation
         lib = rl.RegressionLibrary(self.x_symb, self.x_vals)
         # raveling variables (making them 1d
@@ -123,15 +124,31 @@ class MainPipeline(object):
         filename = self.prefix + '_linear_beta_p' + str(self.poly_degree).zfill(2) + '_n' + npoints_name + '.png'
         t = []
         [t.append(i) for i in range(1, len(beta_lin) + 1)]
+        print("betas are %s" %beta_lin)
+        print("beta_min are %s" %beta_min)
+        print("beta_max are %s" %beta_max)
         lib.plotBeta(t, beta_lin, beta_min, beta_max, output_dir, filename)
+        # write betas to a txt file
+        filename = self.prefix + '_linear_beta_p' + str(self.poly_degree).zfill(2) + '_n' + npoints_name + '.txt'
+        with open(output_dir + '/' + filename, 'w') as file_handler:
+            file_handler.write("beta_lin: {}\n".format(beta_lin))
+            print('\n')
+            file_handler.write("beta_min: {}\n".format(beta_min))
+            print('\n')
+            file_handler.write("beta_max: {}\n".format(beta_max))
         ''' kFold Cross Validation '''
         ''' MANUAL '''
-        self.kFoldMSEtest_lin = lib.doCrossVal(X, self.z, self.kfold)[0]
+        print('kFold CV for Linear Regression - Manual \n')
+        self.kFoldMSEtest_lin  = lib.doCrossVal(X, self.z, self.kfold)[0]
         self.kFoldMSEtrain_lin = lib.doCrossVal(X, self.z, self.kfold)[1]
+        self.kFoldBias_lin     = lib.doCrossVal(X, self.z, self.kfold)[2]
+        self.kFoldVariance_lin = lib.doCrossVal(X, self.z, self.kfold)[3]
         ''' Scikit Learn '''
         reg_type = 'linear'
-        self.kFoldMSEtestSK_lin = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[0]
+        self.kFoldMSEtestSK_lin  = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[0]
         self.kFoldMSEtrainSK_lin = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[1]
+        self.kFoldBiasSK_lin     = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[2]
+        self.kFoldVarianceSK_lin = lib.doCrossValScikit(X_poly, z_rav, self.kfold, self.poly_degree, self.lambda_par, reg_type)[3]
 
         #==============================================================================================================#
         ''' Ridge Regression '''
@@ -154,46 +171,71 @@ class MainPipeline(object):
         filename = self.prefix + '_ridge_beta_p' + str(self.poly_degree).zfill(2) + '_n' + npoints_name + '.png'
         t = []
         [t.append(i) for i in range(1, len(beta_lin) + 1)]
+        print("betas are %s" %beta_ridge)
+        print("beta_min are %s" %beta_min)
+        print("beta_max are %s" %beta_max)
         lib.plotBeta(t, beta_ridge, beta_min, beta_max, output_dir, filename)
+        # write betas to a txt file
+        filename = self.prefix + '_ridge_beta_p' + str(self.poly_degree).zfill(2) + '_n' + npoints_name + '.txt'
+        with open(output_dir + '/' + filename, 'w') as file_handler:
+            file_handler.write("beta_ridge: {}\n".format(beta_ridge))
+            print('\n')
+            file_handler.write("beta_min: {}\n".format(beta_min))
+            print('\n')
+            file_handler.write("beta_max: {}\n".format(beta_max))
         # Calculating k-Fold Cross Validation
-        curr_lambda = 0.1
+        print('kFold CV for Ridge Regression - Manual \n')
+        #curr_lambda = 0.1
         # parallel processing
         manager = mp.Manager()
         # making a dictionary of values which will save "mse mean value"
-        self.kFoldMSEtest_ridge = manager.dict()
+        self.kFoldMSEtest_ridge  = manager.dict()
         self.kFoldMSEtrain_ridge = manager.dict()
+        self.kFoldBias_ridge     = manager.dict()
+        self.kFoldVariance_ridge = manager.dict()
         lambdas = []
+        # decreasing the value of lambda till certain minimal value
+        # and updating the list
         while curr_lambda >= self.lambda_par:
             lambdas.append(curr_lambda)
             curr_lambda = curr_lambda/10
         # creating a method to work with dictionaries (in parallel)
-        def doMultiproc1(kFoldMSEtest_ridge, kFoldMSEtrain_ridge, lib, X, z, kfold, curr_lambda):
+        def doMultiproc1(kFoldMSEtest_ridge, kFoldMSEtrain_ridge, kFoldBias_ridge, kFoldVariance_ridge, lib, X, z, kfold, curr_lambda):
             print('Ridge Manual \n')
             print("Starting to calculate for $\lambda$=%s" %curr_lambda + '\n')
-            kFoldMSEtest_ridge[curr_lambda] = lib.doCrossValRidge(X, z, kfold, curr_lambda)[0]
+            kFoldMSEtest_ridge[curr_lambda]  = lib.doCrossValRidge(X, z, kfold, curr_lambda)[0]
             kFoldMSEtrain_ridge[curr_lambda] = lib.doCrossValRidge(X, z, kfold, curr_lambda)[1]
+            kFoldBias_ridge[curr_lambda]     = lib.doCrossValRidge(X, z, kfold, curr_lambda)[2]
+            kFoldVariance_ridge[curr_lambda] = lib.doCrossValRidge(X, z, kfold, curr_lambda)[3]
             # and exit!
             return
-        #nproc = mp.cpu_count()-1
-        Parallel(n_jobs = nproc, backend="threading", verbose = 1)(delayed(doMultiproc1)(self.kFoldMSEtest_ridge, self.kFoldMSEtrain_ridge,
+        # using library for parallel processing to loop through all lambda parameters
+        Parallel(n_jobs = nproc, backend="threading", verbose = 2)(delayed(doMultiproc1)(self.kFoldMSEtest_ridge, self.kFoldMSEtrain_ridge,
+                                                                    self.kFoldBias_ridge, self.kFoldVariance_ridge,
                                                        lib, X, self.z, self.kfold, curr_lambda) for curr_lambda in lambdas)
         ''' Scikit Learn '''
+        print('kFold CV for Ridge Regression - Scikit Learn \n')
         # chosing the type of regression
         reg_type = 'ridge'
         # making a dictionary of values which will save "mse mean value"
         # parallel processing
-        #manager = mp.Manager()
-        self.kFoldMSEtestSK_ridge = manager.dict()
+        self.kFoldMSEtestSK_ridge  = manager.dict()
         self.kFoldMSEtrainSK_ridge = manager.dict()
+        self.kFoldBiasSK_ridge     = manager.dict()
+        self.kFoldVarianceSK_ridge = manager.dict()
         # creating a method to work with dictionaries (in parallel)
-        def doMultiproc2(kFoldMSEtestSK_ridge, kFoldMSEtrainSK_ridge, lib, X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type):
+        def doMultiproc2(kFoldMSEtestSK_ridge, kFoldMSEtrainSK_ridge, kFoldBiasSK_ridge, kFoldVarianceSK_ridge,
+                         lib, X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type):
             print('Ridge Scikit Learn \n')
             print("Starting to calculate for $\lambda$=%s" %curr_lambda + '\n')
-            kFoldMSEtestSK_ridge[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type)[0]
+            kFoldMSEtestSK_ridge[curr_lambda]  = lib.doCrossValScikit(X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type)[0]
             kFoldMSEtrainSK_ridge[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type)[1]
+            kFoldBiasSK_ridge[curr_lambda]     = lib.doCrossValScikit(X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type)[2]
+            kFoldVarianceSK_ridge[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type)[3]
             # and exit!
             return
-        Parallel(n_jobs = nproc, backend="threading", verbose = 1)(delayed(doMultiproc2)(self.kFoldMSEtestSK_ridge, self.kFoldMSEtrainSK_ridge, lib, X_poly,
+        Parallel(n_jobs = nproc, backend="threading", verbose = 1)(delayed(doMultiproc2)(self.kFoldMSEtestSK_ridge, self.kFoldMSEtrainSK_ridge,
+                                                                    self.kFoldBiasSK_ridge, self.kFoldVarianceSK_ridge, lib, X_poly,
                                                        z_rav, self.kfold, self.poly_degree, curr_lambda, reg_type)
                                                        for curr_lambda in lambdas)
 
@@ -212,20 +254,27 @@ class MainPipeline(object):
         filename = self.prefix + '_lasso_p' + str(self.poly_degree).zfill(2) + '_n'+ npoints + '.png'
         lib.plotSurface(self.x, self.y, zarray_lasso, self.output_dir, filename)
         # k-fold - studying the dependence on lambda
+        print('kFold CV for LASSO Regression - Scikit Learn \n')
         reg_type = 'lasso'
         # parallel processing
         # making a dictionary of values which will save "mse mean value"
-        self.kFoldMSEtestSK_lasso = manager.dict()
+        self.kFoldMSEtestSK_lasso  = manager.dict()
         self.kFoldMSEtrainSK_lasso = manager.dict()
+        self.kFoldBiasSK_lasso     = manager.dict()
+        self.kFoldVarianceSK_lasso = manager.dict()
         # creating a method to work with dictionaries
-        def doMultiproc3(kFoldMSEtestSK_lasso, kFoldMSEtrainSK_lasso, lib, X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type):
+        def doMultiproc3(kFoldMSEtestSK_lasso, kFoldMSEtrainSK_lasso, kFoldBiasSK_lasso, kFoldVarianceSK_lasso,
+                         lib, X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type):
             print('Lasso Scikit Learn \n')
             print("Starting to calculate for $\lambda$=%s" %curr_lambda + '\n')
-            kFoldMSEtestSK_lasso[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type)[0]
+            kFoldMSEtestSK_lasso[curr_lambda]  = lib.doCrossValScikit(X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type)[0]
             kFoldMSEtrainSK_lasso[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type)[1]
+            kFoldBiasSK_lasso[curr_lambda]     = lib.doCrossValScikit(X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type)[2]
+            kFoldVarianceSK_lasso[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type)[3]
             # and exit!
             return
-        Parallel(n_jobs = nproc, backend="threading", verbose = 1)(delayed(doMultiproc3)(self.kFoldMSEtestSK_lasso, self.kFoldMSEtrainSK_lasso, lib, X_poly,
+        Parallel(n_jobs = nproc, backend="threading", verbose = 1)(delayed(doMultiproc3)(self.kFoldMSEtestSK_lasso, self.kFoldMSEtrainSK_lasso,
+                                                                    self.kFoldBiasSK_lasso, self.kFoldVarianceSK_lasso, lib, X_poly,
                                                     z_rav, self.kfold, self.poly_degree, curr_lambda, reg_type)
                                                     for curr_lambda in lambdas)
 
@@ -298,12 +347,14 @@ if __name__ == '__main__':
         confidence = 1.96
         sigma = 0.1
         # lasso very sensitive to this lambda parameter
-        sys.stdout.write("Please, choose the value of hyperparameter (lambda) (default = 0.0001): ")
+        sys.stdout.write("Please, choose the min value of hyperparameter (lambda) (default = 0.0001): ")
         lambda_par = input()
         if lambda_par == '':
             lambda_par = 0.0001
         else:
             lambda_par = float(lambda_par)
+        # max lambda value (starting one)
+        max_lambda = 0.1
         #lambda_par = 0.000001
         # just to save your value (e.g. png(s)) under correct prefix
         prefix = 'real'
@@ -356,15 +407,16 @@ if __name__ == '__main__':
         kfold = 5
         # to calculate confidence intervals
         confidence = 1.96
-        sigma = 1
+        sigma = 0.1
         # lasso very sensitive to this lambda parameter
-        sys.stdout.write("Please, choose the value of hyperparameter (lambda) (default = 0.0001): ")
+        sys.stdout.write("Please, choose the mean value of hyperparameter (lambda) (default = 0.0001): ")
         lambda_par = input()
         if lambda_par == '':
             lambda_par = 0.0001
         else:
             lambda_par = float(lambda_par)
-        #lambda_par = 0.000001
+        # max lambda value (starting one)
+        max_lambda = 0.1
         # just to save your value (e.g. png(s)) under correct prefix
         prefix = 'fake'
         ''' Generating Data Set '''
@@ -381,7 +433,7 @@ if __name__ == '__main__':
         # setting up the grid
         x, y = np.meshgrid(x_vals[0], x_vals[1])
         # and getting output based on the Franke Function
-        z = lib.FrankeFunction(x, y) + 0.1 * np.random.randn(N_points, N_points)
+        z = lib.FrankeFunction(x, y) + sigma * np.random.randn(N_points, N_points)
 
     # To plot MSE from kFold Cross Validation
     kFoldMSEtest_lin      = []#[None] * max_poly_degree
@@ -397,6 +449,20 @@ if __name__ == '__main__':
     kFoldMSEtestSK_lasso  = []#[None] * max_poly_degree
     kFoldMSEtrainSK_lasso = []#[None] * max_poly_degree
 
+    # for bias-variance trade off
+    kFoldBias_lin         = []
+    kFoldVariance_lin     = []
+    kFoldBiasSK_lin       = []
+    kFoldVarianceSK_lin   = []
+
+    kFoldBias_ridge       = []
+    kFoldVariance_ridge   = []
+    kFoldBiasSK_ridge     = []
+    kFoldVarianceSK_ridge = []
+
+    kFoldBiasSK_lasso     = []
+    kFoldVarianceSK_lasso = []
+
     # to better classify output plots, I am adding
     # the amount of points, the png was generated for
     # (if it is a real data => then we get 'real' in the name)
@@ -411,7 +477,7 @@ if __name__ == '__main__':
         print('Starting analysis for polynomial of degree: ' + str(poly_degree))
         pipeline = MainPipeline(x_symb, x_vals, x, y, z, confidence, sigma, kfold,
         lambda_par, output_dir, prefix, poly_degree)
-        pipeline.doRegression(nproc, npoints)
+        pipeline.doRegression(nproc, npoints, max_lambda)
 
         # getting the list of dictionaries
         # linear regression kfold
@@ -420,13 +486,31 @@ if __name__ == '__main__':
         kFoldMSEtestSK_lin.append(pipeline.kFoldMSEtestSK_lin)
         kFoldMSEtrainSK_lin.append(pipeline.kFoldMSEtrainSK_lin)
         # ridge regression kfold
-        kFoldMSEtest_ridge.append(pipeline.kFoldMSEtest_ridge)
-        kFoldMSEtrain_ridge.append(pipeline.kFoldMSEtrain_ridge)
-        kFoldMSEtestSK_ridge.append(pipeline.kFoldMSEtestSK_ridge)
-        kFoldMSEtrainSK_ridge.append(pipeline.kFoldMSEtrainSK_ridge)
+        kFoldMSEtest_ridge.append(dict(pipeline.kFoldMSEtest_ridge))
+        kFoldMSEtrain_ridge.append(dict(pipeline.kFoldMSEtrain_ridge))
+        kFoldMSEtestSK_ridge.append(dict(pipeline.kFoldMSEtestSK_ridge))
+        kFoldMSEtrainSK_ridge.append(dict(pipeline.kFoldMSEtrainSK_ridge))
         # lasso regression kfold
-        kFoldMSEtestSK_lasso.append(pipeline.kFoldMSEtestSK_lasso)
-        kFoldMSEtrainSK_lasso.append(pipeline.kFoldMSEtrainSK_lasso)
+        kFoldMSEtestSK_lasso.append(dict(pipeline.kFoldMSEtestSK_lasso))
+        kFoldMSEtrainSK_lasso.append(dict(pipeline.kFoldMSEtrainSK_lasso))
+
+        '''
+        getting values for bias and variance. In case of Ridge and Lasso
+        regression these values are represented by dictionaries (for each 
+        values of lambda)
+        '''
+        kFoldBias_lin.append(pipeline.kFoldBias_lin)
+        kFoldVariance_lin.append(pipeline.kFoldVariance_lin)
+        kFoldBiasSK_lin.append(pipeline.kFoldBiasSK_lin)
+        kFoldVarianceSK_lin.append(pipeline.kFoldVarianceSK_lin)
+
+        kFoldBias_ridge.append(dict(pipeline.kFoldBias_ridge))
+        kFoldVariance_ridge.append(dict(pipeline.kFoldVariance_ridge))
+        kFoldBiasSK_ridge.append(dict(pipeline.kFoldBiasSK_ridge))
+        kFoldVarianceSK_ridge.append(dict(pipeline.kFoldVarianceSK_ridge))
+
+        kFoldBiasSK_lasso.append(dict(pipeline.kFoldBiasSK_lasso))
+        kFoldVarianceSK_lasso.append(dict(pipeline.kFoldVarianceSK_lasso))
 
     '''
     Makins plots of MSEs
@@ -452,8 +536,9 @@ if __name__ == '__main__':
     # scikit learn
     ax2.plot(t, kFoldMSEtestSK_lin, color = test_colors[0], marker='o', label='test')
     ax2.plot(t, kFoldMSEtrainSK_lin, color = train_colors[0], linestyle='dashed', label='train')
-    ax1.set_yscale('log')
-    ax2.set_yscale('log')
+    if prefix == 'real':
+        ax1.set_yscale('log')
+        ax2.set_yscale('log')
     # Shrink current axis by 20% - making legends appear to the right of the plot
     box = ax1.get_position()
     ax1.set_position([box.x0, box.y0, box.width * 0.8, box.height])
@@ -469,6 +554,16 @@ if __name__ == '__main__':
     ax2.set_ylabel('MSE')
     fig.savefig(output_dir + '/' + filename)
     plt.close(fig)
+    # write mses to a txt file
+    filename = prefix + '_linear_mse_p' + str(max_poly_degree).zfill(2) + '_n'+ npoints + '.txt'
+    with open(output_dir + '/' + filename, 'w') as file_handler:
+        file_handler.write("MSE test (Me): {}\n".format(kFoldMSEtest_lin))
+        print('\n')
+        file_handler.write("MSE train (Me): {}\n".format(kFoldMSEtrain_lin))
+        print('\n')
+        file_handler.write("MSE test (SK): {}\n".format(kFoldMSEtestSK_lin))
+        print('\n')
+        file_handler.write("MSE train (SK): {}\n".format(kFoldMSEtrainSK_lin))
 
     # Ridge Regression
     filename = prefix + '_ridge_mse_p' + str(max_poly_degree).zfill(2) + '_n'+ npoints +'.png'
@@ -478,9 +573,9 @@ if __name__ == '__main__':
     t = []
     [t.append(i) for i in range(1, max_poly_degree + 1)]
     keylist = []
-    curr_lambda = 1
     # creating a keylist to be able to convert
     # a list of dictionaries to a list of lists
+    curr_lambda = max_lambda
     while curr_lambda >= lambda_par:
         # the list of all lambdas
         keylist.append(curr_lambda)
@@ -503,8 +598,10 @@ if __name__ == '__main__':
     for i in range(len(test_list)):
         ax2.plot(t, test_list[i], color = test_colors[i], marker='o', label='$\lambda$='+str(keylist[i]) + ', test')
         ax2.plot(t, train_list[i], color = train_colors[i], linestyle='dashed', label='$\lambda$='+str(keylist[i]) + ', train')
-    ax1.set_yscale('log')
-    ax2.set_yscale('log')
+
+    if prefix == 'real':
+        ax1.set_yscale('log')
+        ax2.set_yscale('log')
     # Shrink current axis by 20%
     box = ax1.get_position()
     ax1.set_position([box.x0, box.y0, box.width * 0.8, box.height])
@@ -520,6 +617,16 @@ if __name__ == '__main__':
     ax2.set_ylabel('MSE')
     fig.savefig(output_dir + '/' + filename)
     plt.close(fig)
+    # write mses to a txt file
+    filename = prefix + '_ridge_mse_p' + str(max_poly_degree).zfill(2) + '_n'+ npoints +'.txt'
+    with open(output_dir + '/' + filename, 'w') as file_handler:
+        file_handler.write("MSE test (Me): {}\n".format(kFoldMSEtest_ridge))
+        print('\n')
+        file_handler.write("MSE train (Me): {}\n".format(kFoldMSEtrain_ridge))
+        print('\n')
+        file_handler.write("MSE test (SK): {}\n".format(kFoldMSEtestSK_ridge))
+        print('\n')
+        file_handler.write("MSE train (SK): {}\n".format(kFoldMSEtrainSK_ridge))
 
     # LASSO regression
     filename = prefix + '_lasso_mse_p' + str(max_poly_degree).zfill(2) + '_n'+ npoints +'.png'
@@ -529,9 +636,9 @@ if __name__ == '__main__':
     [t.append(i) for i in range(1, max_poly_degree + 1)]
     # scikit learn
     keylist = []
-    curr_lambda = 1
     # creating a keylist to be able to convert
     # a list of dictionaries to a list of lists
+    curr_lambda = max_lambda
     while curr_lambda >= lambda_par:
         keylist.append(curr_lambda)
         curr_lambda = curr_lambda/10
@@ -545,18 +652,185 @@ if __name__ == '__main__':
     for i in range(len(test_list)):
         ax1.plot(t, test_list[i], color = test_colors[i], marker='o', label='$\lambda$='+str(keylist[i]) + ', test')
         ax1.plot(t, train_list[i], color = train_colors[i], linestyle='dashed', label='$\lambda$='+str(keylist[i]) + ', train')
-    ax1.set_yscale('log')
+    if prefix == 'real':
+        ax1.set_yscale('log')
     # Shrink current axis by 20%
     box = ax1.get_position()
     ax1.set_position([box.x0, box.y0, box.width * 0.8, box.height])
     # Put a legend to the right of the current axis
     ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     ax1.grid(True)
-    ax1.set_title('MSE as a function of model complexity; Ridge Regression')
+    ax1.set_title('MSE as a function of model complexity; Lasso Regression')
     plt.xlabel('model complexity (polynomial degree)')
     ax1.set_ylabel('MSE')
     fig.savefig(output_dir + '/' + filename)
     plt.close(fig)
+    # write mses to a txt file
+    filename = prefix + '_lasso_mse_p' + str(max_poly_degree).zfill(2) + '_n'+ npoints +'.txt'
+    with open(output_dir + '/' + filename, 'w') as file_handler:
+        file_handler.write("MSE test (Me): {}\n".format(kFoldMSEtestSK_lasso))
+        print('\n')
+        file_handler.write("MSE train (Me): {}\n".format(kFoldMSEtrainSK_lasso))
+
+    '''
+    Bias/Variance as a function of model complexity
+    '''
+    # Bias-variance trade off
+    # Colors - randomly generating colors
+    test_colors = [np.random.rand(3,) for i in range(max_poly_degree)] # <= will generate random colors
+    train_colors = [np.random.rand(3,) for i in range(max_poly_degree)]
+    # Turning interactive mode on
+    #plt.ion()
+    ''' Linear Regression '''
+    filename = prefix + '_linear_bv_p' + str(max_poly_degree).zfill(2) + '_n'+ npoints + '.png'
+    fig = plt.figure()
+    ax1 = fig.add_subplot(2, 1, 1)
+    ax2 = fig.add_subplot(2, 1, 2)
+    t = []
+    [t.append(i) for i in range(1, max_poly_degree + 1)]
+    # manual
+    ax1.plot(t, kFoldBias_lin, color = test_colors[0], marker='o', label='bias')
+    ax1.plot(t, kFoldVariance_lin, color = train_colors[0], linestyle='dashed', label='variance')
+    # scikit learn
+    ax2.plot(t, kFoldBiasSK_lin, color = test_colors[0], marker='o', label='bias')
+    ax2.plot(t, kFoldVarianceSK_lin, color = train_colors[0], linestyle='dashed', label='variance')
+    if prefix == 'real':
+        ax1.set_yscale('log')
+        ax2.set_yscale('log')
+    # Shrink current axis by 20% - making legends appear to the right of the plot
+    box = ax1.get_position()
+    ax1.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    box = ax2.get_position()
+    ax2.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    # Put a legend to the right of the current axis
+    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    ax1.grid(True)
+    ax2.grid(True)
+    ax1.set_title('Bias/Variance as a function of model complexity; Linear Regression')
+    plt.xlabel('model complexity (polynomial degree)')
+    ax1.set_ylabel('Bias/Variance')
+    ax2.set_ylabel('Bias/Variance')
+    fig.savefig(output_dir + '/' + filename)
+    plt.close(fig)
+    # write bias/variance to a txt file
+    filename = prefix + '_linear_bv_p' + str(max_poly_degree).zfill(2) + '_n' + npoints + '.txt'
+    with open(output_dir + '/' + filename, 'w') as file_handler:
+        file_handler.write("Bias (Me): {}\n".format(kFoldBias_lin))
+        print('\n')
+        file_handler.write("Variance (Me): {}\n".format(kFoldVariance_lin))
+        print('\n')
+        file_handler.write("Bias (Me): {}\n".format(kFoldBiasSK_lin))
+        print('\n')
+        file_handler.write("Variance (Me): {}\n".format(kFoldVarianceSK_lin))
+
+    ''' Ridge Regression '''
+    filename = prefix + '_ridge_bv_p' + str(max_poly_degree).zfill(2) + '_n'+ npoints +'.png'
+    fig = plt.figure()
+    ax1 = fig.add_subplot(2, 1, 1)
+    ax2 = fig.add_subplot(2, 1, 2)
+    t = []
+    [t.append(i) for i in range(1, max_poly_degree + 1)]
+    keylist = []
+    # creating a keylist to be able to convert
+    # a list of dictionaries to a list of lists
+    curr_lambda = max_lambda
+    while curr_lambda >= lambda_par:
+        # the list of all lambdas
+        keylist.append(curr_lambda)
+        curr_lambda = curr_lambda/10
+    # Manual
+    # converting a list of dictionaries to a list of lists
+    # (index is the lambda value, i.e. we have a list: [[],[],[],...[]]
+    # where first sublist corresponds to a maximum lambda value - 1 -
+    # and the last sublist corresponds to the smallest lambda value - 0.001 (if default))
+    test_list = [[row[key] for row in kFoldBias_ridge] for key in keylist]
+    train_list = [[row[key] for row in kFoldVariance_ridge] for key in keylist]
+    # plotting different mse values for different lambda
+    for i in range(len(test_list)):
+        ax1.plot(t, test_list[i], color = test_colors[i], marker='o', label='$\lambda$='+str(keylist[i]) + ', bias')
+        ax1.plot(t, train_list[i], color = train_colors[i], linestyle='dashed', label='$\lambda$='+str(keylist[i]) + ', variance')
+    # Scikit learn
+    test_list = [[row[key] for row in kFoldBiasSK_ridge] for key in keylist]
+    train_list = [[row[key] for row in kFoldVarianceSK_ridge] for key in keylist]
+    # plotting different mse values for different lambda
+    for i in range(len(test_list)):
+        ax2.plot(t, test_list[i], color = test_colors[i], marker='o', label='$\lambda$='+str(keylist[i]) + ', bias')
+        ax2.plot(t, train_list[i], color = train_colors[i], linestyle='dashed', label='$\lambda$='+str(keylist[i]) + ', variance')
+
+    if prefix == 'real':
+        ax1.set_yscale('log')
+        ax2.set_yscale('log')
+    # Shrink current axis by 20%
+    box = ax1.get_position()
+    ax1.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    box = ax2.get_position()
+    ax2.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    # Put a legend to the right of the current axis
+    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    ax1.grid(True)
+    ax2.grid(True)
+    ax1.set_title('Bias/Variance as a function of model complexity; Ridge Regression')
+    plt.xlabel('model complexity (polynomial degree)')
+    ax1.set_ylabel('Bias/Variance')
+    ax2.set_ylabel('Bias/Variance')
+    fig.savefig(output_dir + '/' + filename)
+    plt.close(fig)
+    # write bias/variance to a txt file
+    filename = prefix + '_ridge_bv_p' + str(max_poly_degree).zfill(2) + '_n'+ npoints +'.txt'
+    with open(output_dir + '/' + filename, 'w') as file_handler:
+        file_handler.write("Bias (Me): {}\n".format(kFoldBias_ridge))
+        print('\n')
+        file_handler.write("Variance (Me): {}\n".format(kFoldVariance_ridge))
+        print('\n')
+        file_handler.write("Bias (Me): {}\n".format(kFoldBiasSK_ridge))
+        print('\n')
+        file_handler.write("Variance (Me): {}\n".format(kFoldVarianceSK_ridge))
+
+    '''Lasso'''
+    filename = prefix + '_lasso_bv_p' + str(max_poly_degree).zfill(2) + '_n'+ npoints +'.png'
+    fig = plt.figure()
+    ax1 = fig.add_subplot(1, 1, 1)
+    t = []
+    [t.append(i) for i in range(1, max_poly_degree + 1)]
+    # scikit learn
+    keylist = []
+    # creating a keylist to be able to convert
+    # a list of dictionaries to a list of lists
+    curr_lambda = max_lambda
+    while curr_lambda >= lambda_par:
+        keylist.append(curr_lambda)
+        curr_lambda = curr_lambda/10
+    # converting a list of dictionaries to a list of lists
+    # (index is the lambda value, i.e. we have a list: [[],[],[],...[]]
+    # where first sublist corresponds to a maximum lambda value - 1 -
+    # and the last sublist corresponds to the smallest lambda value - 0.001 (if default))
+    test_list = [[row[key] for row in kFoldBiasSK_lasso] for key in keylist]
+    train_list = [[row[key] for row in kFoldVarianceSK_lasso] for key in keylist]
+    # plotting different mse values for different lambda
+    for i in range(len(test_list)):
+        ax1.plot(t, test_list[i], color = test_colors[i], marker='o', label='$\lambda$='+str(keylist[i]) + ', bias')
+        ax1.plot(t, train_list[i], color = train_colors[i], linestyle='dashed', label='$\lambda$='+str(keylist[i]) + ', variance')
+
+    if prefix == 'real':
+        ax1.set_yscale('log')
+    # Shrink current axis by 20%
+    box = ax1.get_position()
+    ax1.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    # Put a legend to the right of the current axis
+    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    ax1.grid(True)
+    ax1.set_title('Bias/Variance as a function of model complexity; Lasso Regression')
+    plt.xlabel('model complexity (polynomial degree)')
+    ax1.set_ylabel('Bias/Variance')
+    fig.savefig(output_dir + '/' + filename)
+    plt.close(fig)
+    # write bias/variance to a txt file
+    filename = prefix + '_lasso_bv_p' + str(max_poly_degree).zfill(2) + '_n'+ npoints +'.txt'
+    with open(output_dir + '/' + filename, 'w') as file_handler:
+        file_handler.write("Bias (SK): {}\n".format(kFoldBiasSK_lasso))
+        print('\n')
+        file_handler.write("Variance (SK): {}\n".format(kFoldVarianceSK_lasso))
+
 
     # End time of the program
     end_time = time.time()

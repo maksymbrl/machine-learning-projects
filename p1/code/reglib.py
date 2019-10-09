@@ -151,6 +151,9 @@ class RegressionLibrary:
         MSEtrain_lintot = []
         z_tested = []
         z_trained = []
+        z_t = []
+        # bias
+        bias = []
         # shuffling dataset randomly
         # 1. Shuffling datasets randomly:
         X, z = self.shuffleDataSimultaneously(X, z)
@@ -159,6 +162,7 @@ class RegressionLibrary:
             # Splitting and shuffling data randomly
             #X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
             X_train, X_test, z_train, z_test = self.splitDataset(X, z, kfold, i)
+            z_t.append(z_test)
             # Train The Pipeline
             invA = self.doSVD(X_train)
             beta_train = invA.dot(X_train.T).dot(z_train)
@@ -171,8 +175,14 @@ class RegressionLibrary:
         # linear MSE
         MSEtest_lin = np.mean(MSEtest_lintot)
         MSEtrain_lin = np.mean(MSEtrain_lintot)
+        # bias-variance trade off
+        z_tested_mean = np.mean(z_tested, axis=1, keepdims=True)
+        for i in range(kfold):
+            bias.append((z_t[i] - z_tested_mean)**2)
+        bias_mean = np.mean( bias )
+        variance_mean = np.mean( np.var(z_tested, axis=1, keepdims=True) )
 
-        return MSEtest_lin, MSEtrain_lin
+        return MSEtest_lin, MSEtrain_lin, bias_mean, variance_mean
 
     '''
     Ridge Cross validation - manual algorithm
@@ -188,6 +198,10 @@ class RegressionLibrary:
         MSEtrain_ridgetot = []
         z_tested = []
         z_trained = []
+        # saving test data set to calculate bias-variance trade off
+        z_t = []
+        # bias
+        bias = []
         # shuffling dataset randomly
         # 1. Shuffling datasets randomly:
         X, z = self.shuffleDataSimultaneously(X, z)
@@ -195,6 +209,7 @@ class RegressionLibrary:
             # Splitting and shuffling data randomly
             #X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
             X_train, X_test, z_train, z_test = self.splitDataset(X, z, kfold, i)
+            z_t.append(z_test)
             # constructing the identity matrix
             I = np.identity(len(X_train.T.dot(X_train)), dtype=float)
             # Train The Pipeline
@@ -210,8 +225,14 @@ class RegressionLibrary:
         # Ridge MSE
         MSEtest_ridge = np.mean(MSEtest_ridgetot)
         MSEtrain_ridge = np.mean(MSEtrain_ridgetot)
+        # bias-variance trade off
+        z_tested_mean = np.mean(z_tested, axis=1, keepdims=True)
+        for i in range(kfold):
+            bias.append((z_t[i] - z_tested_mean)**2)
+        bias_mean = np.mean( bias )
+        variance_mean = np.mean( np.var(z_tested, axis=1, keepdims=True) )
 
-        return MSEtest_ridge, MSEtrain_ridge
+        return MSEtest_ridge, MSEtrain_ridge, bias_mean, variance_mean
     '''
     Cross Validation using Scikit Learn functionalities (all at once)
     '''
@@ -225,71 +246,64 @@ class RegressionLibrary:
         # understanding the regression type to use
         reg_type = args[5]
         if reg_type == 'linear':
-            model = LinearRegression(fit_intercept = True)
+            model = LinearRegression(fit_intercept = False)
         elif reg_type == 'ridge':
-            model = Ridge(alpha = lambda_par, fit_intercept = True)
+            model = Ridge(alpha = lambda_par, fit_intercept = False)
         elif reg_type == 'lasso':
             model = Lasso(alpha = lambda_par)
         else:
             print("Houston, we've got a problem!")
-        #err = []
-        #bi=[]
-        #vari=[]
+
         MSEtest = []
         MSEtrain = []
-        # getting the correct size of the array
-        #X_trainz, X_testz, y_trainz, y_testz = train_test_split(X, z, test_size = 1./kfold)
-        #array_size = len(y_testz)
-        # creating an empty array
-        #z_pred = np.empty((array_size, kfold))
+        # bias
+        bias = []
+        z_t = []
+        z_tested = []
+        # If the dataset does not cleanly divide by the number of folds,
+        # there may be some remainder rows and they will not be used in the split.
+        length = len(X) % kfold
+        if length == 0:
+            condition = True
+        else:
+            condition = False
+        while condition is False:
+            # removing the element <= they were shuffled randomly,
+            # so it doesn't matter which one to remove
+            X = np.delete(X, -1, axis = 0)
+            z = np.delete(z, -1, axis = 0)
+            # checking whether it is divided cleanly
+            length = len(X) % kfold
+            if length == 0:
+                condition = True
         # making splits - shuffling it
         cv = KFold(n_splits = kfold, shuffle = True, random_state = 1)
         # enumerate splits - splitting the data set to train and test splits
         for train, test in cv.split(X):
             X_train, X_test = X[train], X[test]
             z_train, z_test = z[train], z[test]
+            z_t.append(z_test)
             # making the prediction - comparing outputs for current and "future" datasets
             z_tilde = model.fit(X_train, z_train).predict(X_train).ravel() # z_trained
             z_pred = model.fit(X_train, z_train).predict(X_test).ravel() # z_tested
-            #print(np.shape(z_train), np.shape(z_tilde))
-
-            #z_trained.append(X_train @ beta_train)
-            #z_tested.append(X_test @ beta_train)
-            # Calculating MSE for each iteration
-            #MSEtest_ridgetot.append(self.getMSE(z_test, z_tested[i]))
-            #MSEtrain_ridgetot.append(self.getMSE(z_train, z_trained[i]))
+            z_tested.append(z_pred)
 
             MSEtest.append(mean_squared_error(z_test, z_pred))
             MSEtrain.append(mean_squared_error(z_train, z_tilde))
+
         # getting the mean values for errors (to plot them later)
         MSEtest_mean = np.mean(MSEtest)
         MSEtrain_mean = np.mean(MSEtrain)
-        # mean squared error
-        #error = np.mean( np.mean((z_test - z_pred)**2, axis=1, keepdims=True) )
-        #bias = np.mean( (z_test - np.mean(z_pred, axis=1, keepdims=True))**2 )
-        #variance = np.mean( np.var(z_pred, axis=1, keepdims=True) )
-        #err.append(error)
-        #bi.append(bias)
-        #vari.append(variance)
+        # bias-variance trade off
+        z_tested_mean = np.mean(z_tested, axis=1, keepdims=True)
+        for i in range(kfold):
+            bias.append((z_t[i] - z_tested_mean)**2)
+        bias_mean = np.mean( bias )
+        variance_mean = np.mean( np.var(z_tested, axis=1, keepdims=True) )
 
         # returning MSE, bias and variance for  a given polynomial degree
-        return MSEtest_mean, MSEtrain_mean
+        return MSEtest_mean, MSEtrain_mean, bias_mean, variance_mean
 
-    ''' 
-    Confidence intervals for beta
-    '''
-    #    def getConfidence(self, *args):
-    # beta, X, confidence=1.96
-    #        beta = args[0]
-    #        X = args[1]
-    #        confidence = args[2]
-    #        invA = self.doSVD(X)
-
-    #        weight = np.sqrt( np.diag( invA ) ) * confidence
-    #        betamin = beta - weight
-    #        betamax = beta + weight
-
-    #        return betamin, betamax
     '''
     MSE - the smaller the better (0 is the best?)
     '''
@@ -329,7 +343,7 @@ class RegressionLibrary:
         ztilde = X @ beta
         # calculating beta confidence
         confidence = args[2]  # 1.96
-        sigma = np.var(z)#args[3]#np.var(z)  # args[3] #1
+        sigma = args[3]#np.var(z)  # args[3] #1
         SE = sigma * np.sqrt(np.diag(invA)) * confidence
         beta_min = beta - SE
         beta_max = beta + SE
