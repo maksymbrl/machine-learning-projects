@@ -210,7 +210,7 @@ class MainPipeline(object):
             # and exit!
             return
         # using library for parallel processing to loop through all lambda parameters
-        Parallel(n_jobs = nproc, backend="threading", verbose = 2)(delayed(doMultiproc1)(self.kFoldMSEtest_ridge, self.kFoldMSEtrain_ridge,
+        Parallel(n_jobs = nproc, verbose = 2)(delayed(doMultiproc1)(self.kFoldMSEtest_ridge, self.kFoldMSEtrain_ridge,
                                                                     self.kFoldBias_ridge, self.kFoldVariance_ridge,
                                                        lib, X, self.z, self.kfold, curr_lambda) for curr_lambda in lambdas)
         ''' Scikit Learn '''
@@ -234,7 +234,7 @@ class MainPipeline(object):
             kFoldVarianceSK_ridge[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type)[3]
             # and exit!
             return
-        Parallel(n_jobs = nproc, backend="threading", verbose = 1)(delayed(doMultiproc2)(self.kFoldMSEtestSK_ridge, self.kFoldMSEtrainSK_ridge,
+        Parallel(n_jobs = nproc, verbose = 2)(delayed(doMultiproc2)(self.kFoldMSEtestSK_ridge, self.kFoldMSEtrainSK_ridge,
                                                                     self.kFoldBiasSK_ridge, self.kFoldVarianceSK_ridge, lib, X_poly,
                                                        z_rav, self.kfold, self.poly_degree, curr_lambda, reg_type)
                                                        for curr_lambda in lambdas)
@@ -273,7 +273,7 @@ class MainPipeline(object):
             kFoldVarianceSK_lasso[curr_lambda] = lib.doCrossValScikit(X_poly, z_rav, kfold, poly_degree, curr_lambda, reg_type)[3]
             # and exit!
             return
-        Parallel(n_jobs = nproc, backend="threading", verbose = 1)(delayed(doMultiproc3)(self.kFoldMSEtestSK_lasso, self.kFoldMSEtrainSK_lasso,
+        Parallel(n_jobs = nproc, verbose = 2)(delayed(doMultiproc3)(self.kFoldMSEtestSK_lasso, self.kFoldMSEtrainSK_lasso,
                                                                     self.kFoldBiasSK_lasso, self.kFoldVarianceSK_lasso, lib, X_poly,
                                                     z_rav, self.kfold, self.poly_degree, curr_lambda, reg_type)
                                                     for curr_lambda in lambdas)
@@ -323,6 +323,24 @@ if __name__ == '__main__':
             terrain = imread('Data/SRTM_data_Norway_1.tif')
         else:
             terrain = imread(terrain)
+        '''
+        Decide on how much of data you want to use:
+        It doesn't make sense to use the entire data set, 
+        because there are a lot of points => CV will give 
+        identical results for test and train data. => makes
+        sense to use only like 10% of the data.
+        '''
+        sys.stdout.write("Please, specify the percentage of the data to use (default = 0.1): ")
+        cut_dat = input()
+        terrain.sort()
+        if cut_dat == '':
+            dataset = terrain[int(len(terrain) * 0.9):]#terrain[int(len(terrain) * .05) : int(len(terrain) * .95)]
+        else:
+            dataset = terrain[int(len(terrain) * (1.-float(cut_dat))):]
+        print(np.shape(dataset))
+        #terrain.sort()
+        #dataset = terrain[int(len(terrain) * .05) : int(len(terrain) * .95)]
+        #print(np.shape(dataset))
         # number of independent variables (features)
         n_vars = 2
         # max polynomial degree
@@ -345,7 +363,7 @@ if __name__ == '__main__':
         kfold = 5
         # to calculate confidence intervals
         confidence = 1.96
-        sigma = 0.1
+        sigma = 1 # because I am generating my noise from standard normal distribution
         # lasso very sensitive to this lambda parameter
         sys.stdout.write("Please, choose the min value of hyperparameter (lambda) (default = 0.0001): ")
         lambda_par = input()
@@ -364,13 +382,13 @@ if __name__ == '__main__':
         x_symb = sp.symarray('x', n_vars, real = True)
         # making a copy of this array
         x_vals = x_symb.copy()
-        x_vals[0] = np.linspace(0, len(terrain[0]), len(terrain[0]))
-        x_vals[1] = np.linspace(0, len(terrain), len(terrain))
+        x_vals[0] = np.linspace(0, len(dataset[0]), len(dataset[0]))
+        x_vals[1] = np.linspace(0, len(dataset), len(dataset))
         # library object instantiation
         lib = rl.RegressionLibrary(x_symb, x_vals)
         # generating output data - first setting-up the proper grid
         x, y = np.meshgrid(x_vals[0], x_vals[1])
-        z = terrain
+        z = dataset#terrain
 
     # Working with generated (Fake) data
     elif value == False:
