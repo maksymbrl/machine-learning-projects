@@ -1,23 +1,24 @@
 \section{Formalism}
-\label{formalism}
+\label{sec:formalism}
 
-\textit{Formalism/methods: Discussion of the methods used and their basis/suitability.}
+%\textit{Formalism/methods: Discussion of the methods used and their basis/suitability.}
 
+In this section, I briefly remind the reader about the theoretical background of the problem. For more thorough discussion please refer to \cite{Morten} and/or \cite{Hastie} (lecture notes and elements of statistical learning).
 
-Regression: Finding a functional relationship between an input data set and a reference data set. The goal is to construct a function that maps input data to continuous output values. (Ref. Lecture notes)
+%Regression: Finding a functional relationship between an input data set and a reference data set. The goal is to construct a function that maps input data to continuous output values. (Ref. Lecture notes)
 
-\subsection{Polynomial regression}
+\subsection{Polynomial Regression}
 
-Since obtaining these data points may not be trivial, we want to use these data to fit a function which can allow us to make predictions for values of y which are not in the present set. The perhaps simplest approach is to assume we can parametrize our function in terms of a polynomial of degree n−1 with n points, that is (\ref{} lectures)
-\be{}
+To do the regression analysis means to find a functional relationship between data set and a reference set \cite{Morten}. Therefore, the aim of the regression analysis is to \textit{construct the function}, which will, in principle, map any input data of a similar format to some continuous output values. To put it simply, we want to describe given data set in terms of some variables and not only that, but also to have a model which will be able to predict similar values. Thus, we need to construct the function in such a way, which will allow us to predict the values $y$ not present in the current set. The most basic idea then is to parametrise the function in terms of polynomial. If we have $n$ points, we get $n-1$ (first is zero degree, i.e. constant), which results in \cite{Morten}:
+\be{1}
 y(x_i) = \tilde{y}_i + \epsilon_i=\sum_{j=0}^{n-1}\beta_jx_i^j+\epsilon_i\, ,
 \ee
-which can be written as (\ref{} lecture slides):
-\be{}
+Using matrix notation, this expression can be written as \cite{Morten} :
+\be{2}
 \bm{y} = \bm{X\beta} + \bm{\epsilon}\, ,
 \ee
 where
-\be{}
+\be{3}
 \bm{y} = [y_0,y_1,...,y_{n-1}]^T, \quad \bm{\beta} = [\beta_0,\beta_1,...,\beta_{n-1}]^T, \quad \bm{\epsilon} = [\epsilon_0,\epsilon_1,...,\epsilon_{n-1}]^T\, ,
 \ee
 \[
@@ -30,137 +31,126 @@ where
   \end{bmatrix}
 \]
 The idea is to obtain an optimal set of $\beta_i$ values, which can fit best our current and future datasets. We do this by defining an approximation
-\be{}
+\be{4}
 \bm{\tilde{y}}=\bm{X\beta}\, ,
 \ee
 and minimising the so-called \textit{cost function}
-\be{}
+\be{5}
 \bm{C}(\bm{\beta}) = \frac{1}{n}\sum_{i=0}^{n-1}\left(y_i-\tilde{y}_i\right)=\frac{1}{n}\bm{\left\{\left(y-\tilde{y}\right)^T\left(y-\tilde{y}\right)\right\}}\, ,
 \ee
-which gives us the equations for desired parameters (\ref{} lecture notes)
+i.e. by minimizing the square distance between the estimated function and the observed value, also known as \textit{residual sums of squares}
 \be{}
-\bm{\beta} = \left(\bm{X^TX}\right)^{-1}\bm{X^Ty}\, .
+\hat{\bm{\beta}}=\text{arg min}_\beta \bm{\left\{\left(y-\bm{X\beta}\right)^T\left(y-\bm{X\beta}\right)\right\}}\, ,
 \ee
-Such an approach is based on the assumption that the matrix $\bm{X^TX}$ can be inverted (non-singular). This, however, is often not the case and the standard matrix inversion algorithm can often lead to singularities. One of approaches to avoid this is called \textbf{Singular Value Decomposition}, which allows us to rewrite $X$ in terms of an orthogonal/unitary transformation $U$ (\ref{} lecture notes)
-\be{}
+Such optimization problem has the solution in the form \cite{Morten}
+\be{6}
+\bm{\hat{\beta}} = \left(\bm{X^TX}\right)^{-1}\bm{X^Ty}\, .
+\ee
+$\bm{\hat{\beta}}$ is known as \textit{ordinary least squares estimator}, and due to the common assumption that the error term, $\varepsilon$, has mean zero, the OLS estimator supposed to be \textit{unbiased}. Such property allows OLS to evaluate the \textit{true} values of the regression coefficients.
+
+Sometimes matrix $\bm{X^TX}$ cannot be inverted and thus the standard OLS, based on inversion algorithm, will lead to singularities. One of approaches to avoid this is called \textbf{Singular Value Decomposition}, which allows us to rewrite $X$ in terms of an orthogonal/unitary transformation $U$ \cite{Morten}
+\be{7}
 \bm{X}=\bm{U\Sigma V^T}\, ,
 \ee
-With this in mind, it can be shown that (\ref{} lecture notes)
-\be{}
+With this in mind, it can be shown that \cite{Morten} 
+\be{8}
 \bm{X\beta}=\bm{X}\left(\bm{VDV^T}\right)^{-1}\bm{X^Ty}=\bm{U\Sigma V^T}\left(\bm{VDV^T}\right)^{-1}\left(\bm{U\Sigma V^T}\right)^T\bm{y}=\bm{UU^Ty}\, .
 \ee
-Another approach is to simply add a small parameter
-\be{}
+
+\subsection{The Bias-variance trade-off}
+
+In principle, we want to estimate the regression coefficients with the method, which involves least possible errors. The prediction error is frequently introduced by the metric called \textit{Mean Squared Error} (MSE) and it can be defined as \cite{Morten}
+
+\be{16}
+\text{MSE}(\bm{X\beta})=E\left[\left(\bm{y}-\tilde{\bm{y}}\right)^2\right], \quad \bm{y} = \bm{f}(\bm{x}) + \bm{\varepsilon}\, ,
+\ee
+Let us look into this expression in a more detail
+\ba{17}
+E\left[\left(\bm{y}-\tilde{\bm{y}}\right)^2\right]&=&E\left[\left(\bm{f}+\bm{\varepsilon} - \tilde{\bm{y}}+E[\tilde{\bm{y}}] - E[\tilde{\bm{y}}]\right)^2\right]\nn\\
+&=&\left[\left(\bm{f}-E[\bm[y]]\right)-\left(\tilde{\bm{y}}-E[\tilde{y}]\right)\right]^2 + \sigma^2\nn\\
+&=&\left(\bm{f}-E[\bm{y}]\right)^2-2\left(\bm{f}-E[\bm{y}]\right)\left(\tilde{\bm{y}}-E[\tidle{\bm{y}}]\right)+\left(\tilde{\bm{y}}-E[\tilde{\bm{y}}]\right)^2+\varepsilon^2\nn\\
+&=&E\left[\left(\bm{f}-E[\bm{y}]\right)^2+\left(\tilde{\bm{y}}-E[\tilde{\bm{y}}]\right)^2+\bm{\varepsilon}^2\right]-2E\left[\left(\bm{f}-E[\bm{y}]\right)\left(\tilde{\bm{y}}-E[\tidle{\bm{y}}]\right)\right]\, ,
+\ea
+where the last part equals to zero because:
+\be{18}
+E[\bm{f}E[\tilde{\bm{y}}]]=E[\bm{f}]E[\bm{\tilde{y}}]\, ,
+\ee
+Thus, we get
+\be{19}
+\text{MSE}(\bm{X\beta})=E\left[\left(\bm{y}-\tilde{\bm{y}}\right)^2\right]=E\left[\left(\bm{f}-E[\bm{y}]\right)^2+\left(\tilde{\bm{y}}-E[\tilde{\bm{y}}]\right)^2+\bm{\varepsilon}^2\right]\, ,
+\ee
+or
+\be{20}
+E\left[\left(\bm{y}-\tilde{\bm{y}}\right)^2\right]=\frac{1}{n}\sum_i\left(f_i-E[\tilde{\bm{y}}]\right)^2+\frac{1}{n}\sum_i\left(\tilde{y}_i-E[\tilde{\bm{y}}]\right)^2+\sigma^2\, .
+\ee
+The last term, $\sigma^2$ here irreducible error and it is beyond our control. The second term is the \textit{variance} of our model, which is simply the variance of the an average. It decreases with inverse of n (the degrees of freedom/model complexity). The first term is \textit{bias} and it is the squared difference between the true mean and the expected value of the estimate. As $n$ grows, it will increase; hence the \textir{bias-variance trade-off}.
+
+Because of the existence of bias-variance trade-off, it could be better if we would be able to utilize this property somehow. We can do this by introducing bias to the estimates, while achieving less variability. Unfortunately, OLS are unbiased by default and hence cannot be exploited. 
+
+But what if we introduce this bias? For instance, adding the penalty, $\lambda$:
+\be{9}
 \bm{X^TX}\rightarrow\bm{X^TX}+\bm{\lambda I}\, ,
 \ee
-which is basically what we end up with, while considering the so-called Ridge regression.
-
-\subsection{Ridge regression}
-
-The amount of regularization to apply during learning can be controlled by a hyper‐ parameter. A hyperparameter is a parameter of a learning algorithm (not of the model). As such, it is not affected by the learning algorithm itself; it must be set prior to training and remains constant during training. If you set the regularization hyper‐ parameter to a very large value, you will get an almost flat model (a slope close to zero); the learning algorithm will almost certainly not overfit the training data, but it will be less likely to find a good solution. Tuning hyperparameters is an important part of building a Machine Learning system (you will see a detailed example in the next chapter).
-
+It can be shown (see e.g. \cite{Hastie}, that in this way we will get a slightly different optimization problem:
 \be{}
-\, ,
+\hat{\bm{\beta}}^{\text{ridge}}=\text{arg min}_\beta \left\{\bm{\left(y-\bm{X\beta}\right)^T\left(y-\bm{X\beta}\right)} + \lambda\sum_{i=1}^p\beta_i^2\right\}}\, ,
 \ee
-\be{}
-\, ,
+or
+\be{11}
+\hat{\bm{\beta}}^{\text{ridge}}=\left(\bm{X^TX} + \lambda\bm{I}\right)^{-1}\bm{X}^T\bm{y}\, ,
 \ee
-\be{}
-\, ,
-\ee
+Such optimization problem is called \textbf{Ridge} regression and it is highly dependable on the \textit{tuning} or \textit{penalty} (\textit{hyper}) parameter, $\lambda$.
+
+Ridge regression is the part of \textit{shrinkage methods} \cite{Hastie} and it imposes the penalty on the size of regression coefficients and thus shrinks them. The amount of shrinkage is controlled by $\lambda \ge 0$ - larger $\lambda$ leads to larger amount of shrinkage.
+
+In addition, $\lambda$ is not affected by the learning algorithm itself and must be set before start training the algorithm. Moreover, its value should remain constant during the entire training process.
+
+Very large values of $\lambda$ will result in almost flat model (zero slope); thus, it will not achieve \textit{overfitting} of the training data, but there is smaller chance to find a good solution.
 
 \subsection{LASSO regression}
 
-For Lasso you can simply state that it optimizes the learning rate, that is it finds the optimal learning rate via various methods
+The LASSO (Least Absolute Shrinkage and Selection Operator) is a regression method that involves penalizing the absolute size of the regression coefficients.
 
-https://scikit-learn.org/stable/modules/sgd.html
+By penalizing or constraining the sum of the absolute values of the estimates you make some of your coefficients zero. The larger the penalty applied, the further estimates are shrunk towards zero. This is convenient when we want some automatic feature/variable selection, or when dealing with highly correlated predictors, where standard regression will usually have regression coefficients that are too large.
+
+Lasso is quite different in comparison to Ridge, i.e. the estimate now defined as \cite{Hastie}:
+\be{14}
+\hat{\beta}^{lasso} = \text{argmin}_\beta\sum_{i=1}^N\left(y_i-\beta_0-\sum_{j=1}^px_{ij}\beta_j\right)^2\, ,
+\ee
+\be{15}
+\text{subject to}\sum_{j=1}^p|\beta_j|\le t\, ,
+\ee
+In this case the solution for $\hat{\beta}^0=<y>$ which means we need to fit our model without an intercept, and thereafter we fit a model without an intercept.
+
+To summarize, while Ridge regression does a proportional shrinkage, Lasso translates each coefficient by a constant factor $\lambda$ truncating at zero \cite{Hastie}.
+
+%For Lasso you can simply state that it optimizes the learning rate, that is it finds the optimal learning rate via various methods
+
+%https://scikit-learn.org/stable/modules/sgd.html
 
 \subsection{Resampling Methods - Cross validation}
-Cross-validation is a statistical method used to estimate the skill of machine learning models.
 
-It is commonly used in applied machine learning to compare and select a model for a given predictive modeling problem because it is easy to understand, easy to implement, and results in skill estimates that generally have a lower bias than other methods.
+Splitting your data set into test and training one is the common practice in ML algorithms. It is used to compare and select a model for a given predictive modeling problem because it is easy to understand, easy to implement, and results in skill estimates that generally have a lower bias than other methods \cite{Geron} (hands on machine learning).
 
-Cross-validation is a resampling procedure used to evaluate machine learning models on a limited data sample.
+There are a lot of ways to split your data set into several parts. One of them is called \textbf{k-Fold Cross validation} (CV). It is a statistical method used to estimate the "learning" skill of ML models. It is very useful resampling if you have limited data sample and you want to test your model. It is called k-Fold because the parameter k refers to the number of groups that a given data sample is splitted into. When a specific value for e.g. k=10 is chosen, k-Fold becomes 10-fold CV.
 
-The procedure has a single parameter called k that refers to the number of groups that a given data sample is to be split into. As such, the procedure is often called k-fold cross-validation. When a specific value for k is chosen, it may be used in place of k in the reference to the model, such as k=10 becoming 10-fold cross-validation.
+After you splitted your entire data set on k subsets, you train each model against different combination of these subsets and validate it against the remaining parts. Once the model type and $\lambda$ have been selected, a final model is trained using these hyperparameters on the full training set, and the generalized error is measured on the test set. 
 
+It is primarily used  to estimate the skill of ML model on "unseen" data, i.e. you have a limited sample and you use it estimate how well your model will work in general on the data, which were not used during the training of the model.
 
-
-(from hands on machine learning)
-The problem is that you measured the generalization error multiple times on the test set, and you adapted the model and hyperparameters to produce the best model for that set. This means that the model is unlikely to perform as well on new data.
-
-A common solution to this problem is to have a second holdout set called the valida‐ tion set. You train multiple models with various hyperparameters using the training set, you select the model and hyperparameters that perform best on the validation set, and when you’re happy with your model you run a single final test against the test set to get an estimate of the generalization error.
-
-To avoid “wasting” too much training data in validation sets, a common technique is to use cross-validation: the training set is split into complementary subsets, and each model is trained against a different combination of these subsets and validated against the remaining parts. Once the model type and hyperparameters have been selected, a final model is trained using these hyperparameters on the full training set, and the generalized error is measured on the test set. 
-
-\textbf{Cross-validation} is primarily used in applied machine learning to estimate the skill of a machine learning model on unseen data. That is, to use a limited sample in order to estimate how the model is expected to perform in general when used to make predictions on data not used during the training of the model.
-
-It is a popular method because it is simple to understand and because it generally results in a less biased or less optimistic estimate of the model skill than other methods, such as a simple train/test split.
-
-The general procedure is as follows:
-
-Shuffle the dataset randomly.
-Split the dataset into k groups
-For each unique group:
-Take the group as a hold out or test data set
-Take the remaining groups as a training data set
-Fit a model on the training set and evaluate it on the test set
-Retain the evaluation score and discard the model
-Summarize the skill of the model using the sample of model evaluation scores
-
-
-
-Configuration of k
-The k value must be chosen carefully for your data sample.
-
-A poorly chosen value for k may result in a mis-representative idea of the skill of the model, such as a score with a high variance (that may change a lot based on the data used to fit the model), or a high bias, (such as an overestimate of the skill of the model).
-
-Three common tactics for choosing a value for k are as follows:
-
-Representative: The value for k is chosen such that each train/test group of data samples is large enough to be statistically representative of the broader dataset.
-k=10: The value for k is fixed to 10, a value that has been found through experimentation to generally result in a model skill estimate with low bias a modest variance.
-k=n: The value for k is fixed to n, where n is the size of the dataset to give each test sample an opportunity to be used in the hold out dataset. This approach is called leave-one-out cross-validation.
-
-\subsubsection{Bias-variance tradeoff}
-Overgeneralizing is something that we humans do all too often, and unfortunately machines can fall into the same trap if we are not careful. In Machine Learning this is called overfitting: it means that the model performs well on the training data, but it does not generalize well.
-
-Complex models such as deep neural networks can detect subtle patterns in the data, but if the training set is noisy, or if it is too small (which introduces sampling noise), then the model is likely to detect patterns in the noise itself. Obviously these patterns will not generalize to new instances. 
-
-Constraining a model to make it simpler and reduce the risk of overfitting is called regularization.
-
-As you might guess, underfitting is the opposite of overfitting: it occurs when your model is too simple to learn the underlying structure of the data.
-
-
-
-Possible solutions for overfitting are to simplify the model, constrain it (i.e., regularize it), or get a lot more training data.
-\be{}
-\, ,
-\ee
-\be{}
-\, ,
-\ee
-\be{}
-\, ,
-\ee
-\be{}
-\, ,
-\ee
-\be{}
-\, ,
-\ee
-\be{}
-\, ,
-\ee
-\be{}
-\, ,
-\ee
-\be{}
-\, ,
-\ee
-\be{}
-\, ,
-\ee
-
+Overall, the algorithm is fairly straightforward:
+\begin{itemize}
+    \item Shuffle the data set randomly;
+    \item Split the data set into k groups;
+    \item For each unique group:
+    \begin{enumerate}
+        \item Take the group as a hold out or test data set;
+        \item Take the remaining groups as a training data set;
+        \item Fit a model on the training set and evaluate it on the test set;
+        \item Retain the evaluation score and discard the model;
+        \item Summarize the skill of the model using the sample of model evaluation scores.
+    \end{enumerate}
+\end{itemize}
 
 
 

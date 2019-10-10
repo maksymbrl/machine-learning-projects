@@ -1,14 +1,8 @@
 \section{Code implementation and testing}
-\label{code_imp}
+\label{sec:code_imp}
 
-\textit{Code/Implementations/test: Readability of code, implementation, testing and discussion of benchmarks.}
-\begin{itemize}
-    \item Describe the methods and algorithms
-    \item You need to explain how you implemented the methods and also say something about the structure of your algorithm and present some parts of your code
-    \item You should plug in some calculations to demonstrate your code, such as selected runs used to validate and verify your results. The latter is extremely important!! A reader needs to understand that your code reproduces selected benchmarks and reproduces previous results, either numerical and/or well-known closed form expressions.
-\end{itemize}
 
-In this section I describe the various parts of the code I've written. It equally works for fake (manually generated) and real (Norwegian terrain) data sets. The whole folder structure can be viewed as follows:
+In this section I describe the various parts of the code I've written. It equally works for "fake" (manually generated) and "real" (Norwegian terrain) data sets. The whole folder structure can be viewed as follows:
 \begin{itemize}
     \item reglib.py - small library, which contains all necessary methods to calculate $\beta$'s, MSE, CrossValidation and Bias-Variance trade-off;
     \item regression.py - main module, which contains the entry point of the program together with calling procedures for the reglib.py library;
@@ -58,7 +52,9 @@ The script was written and tested with python 3.7. I was running it either throu
 python regression.py
 \end{lstlisting}
 
-After execution, you will be asked some questions about the data set and other parameters you want to use. In my opinion, it is quite quite simple to understand, so I will omit the tedious explanations here and will go straight to the code explanation.
+Before you run it make sure you have installed such libraries as: \textbf{numpy}, \textbf{sympy}, \textbf{scipy}, \textbf{joblib}, \textbf{itertools}, \textbf{matplotlib}.
+
+After execution, you will be asked some questions about the data set and other parameters you want to use. In my opinion, it is quite simple to understand, so I will omit the tedious explanations here and will go straight to the code explanation.
 
 \subsection{Fake Data}
 
@@ -74,7 +70,7 @@ x_vals = x_symb.copy()
 for i in range(n_vars):
     x_vals[i] = np.arange(0, 1, 1./N_points)
 \end{lstlisting}
-Because we are using Franke function (\ref{} lecture notes):
+Because we are using Franke function \cite{Morten}:
 \begin{lstlisting}
 def FrankeFunction(x,y):
     term1 = 0.75*np.exp(-(0.25*(9*x-2)**2) - 0.25*((9*y-2)**2))
@@ -103,14 +99,14 @@ for poly_degree in range(1, max_poly_degree+1):
 \end{lstlisting}
 
 \subsubsection{Design Matrix}
-To construct a proper design matrix, I first need to generate the polynomial for appropriate degree. I am doing this by using sympy and itertools library to account for all possible combinations of multiplications between our variables, $x_0$, $x_1$, and 1 (i.e.
+To construct a proper design matrix, I first need to generate the polynomial for appropriate degree. I am doing this by using \textbf{sympy} and \textbf{itertools} library to account for all possible combinations of multiplications between our variables, $x_0$, $x_1$, and 1 (i.e.
 $x_0*x_1*1,$ $x_0*x_0*x_1*1$, ...) as:
 \begin{lstlisting}
 variables = list(self.x_symb.copy())
 variables.append(1)
 terms = [sp.Mul(*i) for i in it.combinations_with_replacement(variables, poly_degree)]
 \end{lstlisting}
-After that, I create the matrix and feed it with values, using lambdify method from sympy library:
+After that, I create the matrix and feed it with values, using \textbf{lambdify} method from \textbf{sympy} library:
 \begin{lstlisting}
 points = len(x_vals[0]) * len(x_vals[1])
 X1 = np.ones((points, len(terms)))
@@ -146,7 +142,7 @@ def constructDesignMatrix(self, *args):
 With this in hand, I proceed for regression analysis.
 
 \subsubsection{Linear Regression}
-The main method here is dolinearRegression, which returns predicted values, regression coefficients and confidence intervals for coefficients. It is based on the \textbf{Singular Value Decomposition} (code is taken from \ref{}):
+The main method here is dolinearRegression, which returns predicted values, regression coefficients and confidence intervals for $\beta$ coefficients. It is based on the \textbf{Singular Value Decomposition} (code is taken from \cite{Morten}):
 \begin{lstlisting}
 def doSVD(self, *args):
     # getting matrix
@@ -177,17 +173,16 @@ def doLinearRegression(self, *args):
     invA = self.doSVD(X)
     beta = invA.dot(X.T).dot(z)
     ztilde = X @ beta
-
     # calculating beta confidence
     confidence = args[2]  # 1.96
-    sigma = np.var(z)#args[3]#np.var(z)  # args[3] #1
+    sigma = args[3]#np.var(z)  # args[3] #1
     SE = sigma * np.sqrt(np.diag(invA)) * confidence
     beta_min = beta - SE
     beta_max = beta + SE
 
     return ztilde, beta, beta_min, beta_max
 \end{lstlisting}
-For a given polynomial degree I get a set of $\beta$'s, which I plot and save inside "Output" folder
+For a given polynomial degree I get a set of $\beta$'s, which I plot and save inside "Output" folder.
 
 \subsubsection{Ridge regression}
 
@@ -222,10 +217,11 @@ def doRidgeRegression(self, *args):
     beta = invA.dot(X.T).dot(z)
     # and making predictions
     ztilde = X @ beta
+
     # calculating beta confidence
     confidence = args[3]  # 1.96
     # calculating variance
-    sigma = np.var(z)#args[4]#np.var(z)  # args[4] #1
+    sigma = args[4]#np.var(z)  # args[4] #1
     SE = sigma * np.sqrt(np.diag(invA)) * confidence
     beta_min = beta - SE
     beta_max = beta + SE
@@ -233,20 +229,69 @@ def doRidgeRegression(self, *args):
     return ztilde, beta, beta_min, beta_max
 \end{lstlisting}
 
-\subsubsection{LASSO}
+\subsubsection{Lasso}
 
-For LASSO regression I have used only the Scikit learn functionalities:
+For Lasso Regression I have used only the Scikit learn functionalities:
 \begin{lstlisting}
 lasso_reg = Lasso(alpha=self.lambda_par).fit(X_poly, z_rav)
 ztilde_sk = lasso_reg.predict(X_poly).reshape(zshape)
 \end{lstlisting}
 
 \subsubsection{Cross Validation}
-Because the original task for Linear Regression analysis was split into several parts, I wrote code for k-Fold cross validation as a separate method.
+Because the original task for Linear Regression analysis was split into several parts, I wrote code for k-Fold cross validation as a separate method. The idea for a division is as follows:
+\begin{itemize}
+    \item Instead of two groups, we must return k-folds or k groups of data.
+    \item If the dataset does not cleanly divide by the number of folds, there may be some remainder rows and they will not be used in the split. This means that we need first to account for this division. I have written method which accounts for that, and also shuffling the data set randomly:
+\end{itemize}
+\begin{lstlisting}
+def shuffleDataSimultaneously(self, a, b):
+    assert len(a) == len(b)
+    p = np.random.permutation(len(a))
+    return a[p], b[p]
+\end{lstlisting}
+and then divides it into equal kfolds:
+\begin{lstlisting}
+def splitDataset(self, *args):
+    # getting inputs
+    X = args[0]
+    z = args[1]
+    kfold = args[2]
+    iterator = args[3]
+    # If the dataset does not cleanly divide by the number of folds,
+    # there may be some remainder rows and they will not be used in the split.
+    length = len(X) % kfold
+    if length == 0:
+        condition = True
+    else:
+        condition = False
+    while condition is False:
+        # removing the element <= they were shuffled randomly,
+        # so it doesn't matter which one to remove
+        X = np.delete(X, -1, axis = 0)
+        z = np.delete(z, -1, axis = 0)
+        # checking whether it is divided cleanly
+        length = len(X) % kfold
+        if length == 0:
+            condition = True
+    # 2. Split the dataset into k groups:
+    X_split = np.array_split(X, kfold, axis=0)
+    z_split = np.array_split(z, kfold, axis=0)
+    # train data set - making a copy of the shuffled and splitted arrays
+    X_train = X_split.copy()
+    z_train = z_split.copy()
+    # test data set - each time new element
+    X_test = X_split[iterator]
+    z_test = z_split[iterator]
+    # deleting current element
+    X_train = np.delete(X_train, iterator, 0)
+    z_train = np.delete(z_train, iterator, 0)
+    # and adjusting arrays dimensions (e.g. X: [4, 500, 21] => [2000, 21])
+    X_train = np.concatenate(X_train, axis=0)
+    z_train = z_train.ravel()
 
-Instead of two groups, we must return k-folds or k groups of data.
-
-If the dataset does not cleanly divide by the number of folds, there may be some remainder rows and they will not be used in the split.
+    return X_train, X_test, z_train, z_test
+\end{lstlisting}
+The Cross validation itself is done via
 \begin{lstlisting}
 def doCrossVal(self, *args):
     # getting design matrix
@@ -258,9 +303,17 @@ def doCrossVal(self, *args):
     MSEtrain_lintot = []
     z_tested = []
     z_trained = []
+    z_t = []
+    # bias
+    bias = []
+    # shuffling dataset randomly
+    # 1. Shuffling datasets randomly:
+    X, z = self.shuffleDataSimultaneously(X, z)
+    # splitting data sets into the kfold and iterate over each of them
     for i in range(kfold):
         # Splitting and shuffling data randomly
-        X_train, X_test, z_train, z_test = train_test_split(X, z, test_size=1./kfold, shuffle=True)
+        X_train, X_test, z_train, z_test = self.splitDataset(X, z, kfold, i)
+        z_t.append(z_test)
         # Train The Pipeline
         invA = self.doSVD(X_train)
         beta_train = invA.dot(X_train.T).dot(z_train)
@@ -273,21 +326,141 @@ def doCrossVal(self, *args):
     # linear MSE
     MSEtest_lin = np.mean(MSEtest_lintot)
     MSEtrain_lin = np.mean(MSEtrain_lintot)
+    # bias-variance trade off
+    z_tested_mean = np.mean(z_tested, axis=1, keepdims=True)
+    for i in range(kfold):
+        bias.append((z_t[i] - z_tested_mean)**2)
+    bias_mean = np.mean( bias )
+    variance_mean = np.mean( np.var(z_tested, axis=1, keepdims=True) )
 
-    return MSEtest_lin, MSEtrain_lin
+    return MSEtest_lin, MSEtrain_lin, bias_mean, variance_mean
 \end{lstlisting}
-
+which uses singular value decomposition to calculate $\beta$. The method returns the Mean Squared Error for test and training data sets, as well as bias and variance for a given polynomial. The code to calculate MSEs is taken from \cite{Morten}:
 \begin{lstlisting}
-
+def getMSE(self, z_data, z_model):
+    n = np.size(z_model)
+    return np.sum((z_data - z_model) ** 2) / n
 \end{lstlisting}
+Cross validation for Ridge regression is done in a similar manner, which includes hyper parameter $\lambda$. This method is called "doCrossValRidge".
+
+For Lasso regression I am using Scikit Learn methods and, because, I am also comparing my results with the ones from Scikit Learn (only for Linear and Ridge), I wrote a single method, which handles every regression type for CV. It is based on Scikit Learn functionality. 
+
+The important parameter is a string variable which decides what regression algorithm to use:
 \begin{lstlisting}
+reg_type = args[5]
+if reg_type == 'linear':
+    model = LinearRegression(fit_intercept = False)
+elif reg_type == 'ridge':
+    model = Ridge(alpha = lambda_par, fit_intercept = False)
+elif reg_type == 'lasso':
+    model = Lasso(alpha = lambda_par)
+else:
+    print("Houston, we've got a problem!")
+\end{lstlisting}
+With this, I go directly to Scikit functionalities for splitting data set into k parts. The entire method is then:
+\begin{lstlisting}
+def doCrossValScikit(self, *args):
+        # getting inputs
+        X = args[0]
+        z = args[1]
+        kfold = args[2]
+        poly_degree = args[3]
+        lambda_par = args[4]
+        # understanding the regression type to use
+        reg_type = args[5]
+        if reg_type == 'linear':
+            model = LinearRegression(fit_intercept = False)
+        elif reg_type == 'ridge':
+            model = Ridge(alpha = lambda_par, fit_intercept = False)
+        elif reg_type == 'lasso':
+            model = Lasso(alpha = lambda_par)
+        else:
+            print("Houston, we've got a problem!")
 
+        MSEtest = []
+        MSEtrain = []
+        # bias
+        bias = []
+        z_t = []
+        z_tested = []
+        # If the dataset does not cleanly divide by the number of folds,
+        # there may be some remainder rows and they will not be used in the split.
+        length = len(X) % kfold
+        if length == 0:
+            condition = True
+        else:
+            condition = False
+        while condition is False:
+            # removing the element <= they were shuffled randomly,
+            # so it doesn't matter which one to remove
+            X = np.delete(X, -1, axis = 0)
+            z = np.delete(z, -1, axis = 0)
+            # checking whether it is divided cleanly
+            length = len(X) % kfold
+            if length == 0:
+                condition = True
+        # making splits - shuffling it
+        cv = KFold(n_splits = kfold, shuffle = True, random_state = 1)
+        # enumerate splits - splitting the data set to train and test splits
+        for train, test in cv.split(X):
+            X_train, X_test = X[train], X[test]
+            z_train, z_test = z[train], z[test]
+            z_t.append(z_test)
+            # making the prediction - comparing outputs for current and "future" datasets
+            z_tilde = model.fit(X_train, z_train).predict(X_train).ravel() # z_trained
+            z_pred = model.fit(X_train, z_train).predict(X_test).ravel() # z_tested
+            z_tested.append(z_pred)
+
+            MSEtest.append(mean_squared_error(z_test, z_pred))
+            MSEtrain.append(mean_squared_error(z_train, z_tilde))
+
+        # getting the mean values for errors (to plot them later)
+        MSEtest_mean = np.mean(MSEtest)
+        MSEtrain_mean = np.mean(MSEtrain)
+        # bias-variance trade off
+        z_tested_mean = np.mean(z_tested, axis=1, keepdims=True)
+        for i in range(kfold):
+            bias.append((z_t[i] - z_tested_mean)**2)
+        bias_mean = np.mean( bias )
+        variance_mean = np.mean( np.var(z_tested, axis=1, keepdims=True) )
+
+        # returning MSE, bias and variance for  a given polynomial degree
+        return MSEtest_mean, MSEtrain_mean, bias_mean, variance_mean
 \end{lstlisting}
 
-\subsection{Real Data}
+The method which are located in the regression.py is mostly for plotting, saving and printing various values.
 
+\subsection{Real Data - Bug fixes}
 
-\subsection{Bugs and fixes}
+The real data uses exactly the same method described above. The only difference is that instead of generating function using Franke function, I retrieve it from the tif file. 
+
+The problem with the real data here is that the data set is pretty big. For the first run, I didn't account for it, and that is why it took me more than 7 hours to finish calculating things for 5 consecutive polynomials. To be precise, the console output was:
+\begin{lstlisting}
+-- Program finished at 26326.446545124054 sec --
+\end{lstlisting}
+But, as we will see later, there is no actual need to run the entire data set. In fact, some of our fellow students mentioned that $10\%$ is more than enough to run as the amount of points to train and test the model. I was running even lesser amount. All in all, I changed script a little bit in order to run only portion of the data set
+\begin{lstlisting}
+sys.stdout.write("Please, specify the percentage of the data to use (default = 0.1): ")
+cut_dat = input()
+terrain.sort()
+if cut_dat == '':
+    dataset = terrain[int(len(terrain) * 0.9):]#terrain[int(len(terrain) * .05) : int(len(terrain) * .95)]
+else:
+    dataset = terrain[int(len(terrain) * (1.-float(cut_dat))):]
+print(np.shape(dataset))
+\end{lstlisting}
+This part is located inside \textbf{regression.py} after:
+\begin{lstlisting}
+if __name__ == '__main__':
+\end{lstlisting}
+statement.
+
+After running the script you will be specifically asked what part of the data set you want to use (from 0 to 1, with 1 being the largest value). There is, of course, a default value of $10\%$.
+
+Basically, after running the script with the command above, you will be asked several questions about the data set you want to use and other small details such as the minimal value of $\lambda$ to use, the max degree of polynomial, the number of points to generate
+
+The script \textbf{regression.py} is quite long, but it mostly contains calling for the methods for calculation and ploting fitted surfaces, MSEs, $\beta$, confidence intervals etc. It also saves values, such as regression coefficients and confidence intervals inside \textbf{txt} files to be able to access them later on.
+
 
 
 

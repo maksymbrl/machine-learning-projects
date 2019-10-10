@@ -1,6 +1,11 @@
 \documentclass[paper=a4, fontsize=12pt, svgnames]{scrartcl}
 
-\usepackage[utf8]{inputenc}
+%\usepackage[utf8]{inputenc}
+% Identify packages
+\usepackage[T1]{fontenc}
+\usepackage{fourier}
+\usepackage[english]{babel}															% English language/hyphenation
+\usepackage[protrusion=true,expansion=true]{microtype}	
 \usepackage{amsmath,amsfonts,amsthm,bm} % Math packages
 % to include graphics & make the path to images shorter
 \usepackage[pdftex]{graphicx}
@@ -12,8 +17,60 @@
 \usepackage{tikz}
 \usetikzlibrary{trees}
 
+\usepackage{fix-cm}
+
+% to change margins
+\usepackage{geometry}
+% this is kind of an alternative (I use)
+\usepackage{changepage}
+%\def\changemargin#1#2{\list{}{\rightmargin#2\leftmargin#1}\item[]}
+%\let\endchangemargin=\endlist
+% or
+\newenvironment{changemargin}[2]{%
+\begin{list}{}{%
+\setlength{\topsep}{0pt}%
+\setlength{\leftmargin}{#1}%
+%\setlength{\rightmargin}{#2}%
+\setlength{\topmargin}{#2}%
+\setlength{\listparindent}{\parindent}%
+\setlength{\itemindent}{\parindent}%
+\setlength{\parsep}{\parskip}%
+}%
+\item[]}{\end{list}}
+
+%%% Custom sectioning
+\usepackage{sectsty}
+\usepackage{float}
+% to write code with appropriate fonts
+\usepackage{listings}
+\usepackage{color}
 \allsectionsfont{\centering \normalfont\scshape}
 
+\newenvironment{changemargin}[2]{%
+\begin{list}{}{%
+\setlength{\topsep}{0pt}%
+\setlength{\leftmargin}{#1}%
+%\setlength{\rightmargin}{#2}%
+\setlength{\topmargin}{#2}%
+\setlength{\listparindent}{\parindent}%
+\setlength{\itemindent}{\parindent}%
+\setlength{\parsep}{\parskip}%
+}%
+\item[]}{\end{list}}
+
+\usepackage{url}
+\usepackage[toc,page]{appendix}
+
+\usepackage{euscript,epsfig,amsmath,amssymb}
+\usepackage{latexsym}
+% For hyperlinks
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
 
 
 \newcommand{\be}[1]{\begin{equation}\label{#1}}
@@ -23,10 +80,22 @@
 \newcommand{\rf}[1]{(\ref{#1})}
 \newcommand{\angstrom}{\textup{\AA}}
 
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyfoot[c]{\thepage}									% Pagenumbering
+\renewcommand{\headrulewidth}{1pt}			% Remove header underlines
+\renewcommand{\footrulewidth}{0pt}				% Remove footer underlines
+\setlength{\headheight}{13.6pt}
+
+%%% Equation and float numbering
+\numberwithin{equation}{section}		% Equationnumbering: section.eq#
+\numberwithin{figure}{section}			% Figurenumbering: section.fig#
+\numberwithin{table}{section}				% Tablenumbering: section.tab#
+
 
 
 \title{Report for FYS-STK4155: Project 1}
-\author{maxim.brilenkov }
+\author{Maksym Brilenkov}
 \date{October 2019}
 
 \begin{document}
@@ -54,14 +123,14 @@
 \maketitle
 
 \begin{abstract}
-    \textit{Abstract: accurate and informative? }
-    The abstract gives the reader a quick overview of what has been done and the most important results. Try to be to the point and state your main findings.
+    %\textit{Abstract: accurate and informative? }
+    %The abstract gives the reader a quick overview of what has been done and the most important results. Try to be to the point and state your main findings.
     
-    In this work, I have written the code, which implements several regression algorithms, namely \textit{Linear Regression}, \textit{Ridge Regression} and \textit{LASSO regression}. Th code has been tested firstly on the artificial and then on the real data - Norwegian terrain.
+    I present the code I have developed for fitting the external data set with several different regression algorithms - \textit{Linear}, \textit{Ridge} and \textit{Lasso} regressions. For first two regression techniques, I have written my own methods for computing regression coefficients $\beta$, together with its confidence intervals, through \textit{Singular Value Decomposition} (Linear Regression) and via usual matrix inversion (Ridge regression). I also compare obtained values with the ones from implementing Scikit Learn functionalities. Lasso regression was implemented strictly through Scikit Learn. In addition, I also consider kFold cross validation - both my and Scikit Learn methods - for Linear and Ridge. Later on, I discuss all of them and also compare it to the Scikit Learn analog, while k Fold Lasso regression on the train and test data sets is done via Scikit Learn. Finally, I discuss \textit{bias-variance trade-off} in terms of aforementioned regression models.
 \end{abstract}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\include{body/introduction}
+\input{body/introduction}
 
 \include{body/formalism}
 
@@ -73,7 +142,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % References
+% Bibliography
+\include{body/bibliography}
 
 % Appendix (additional figures and codes)
-
+\include{body/code}
 \end{document}

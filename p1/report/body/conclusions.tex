@@ -1,4 +1,17 @@
 \section{Conclusions}
-\label{conclusions}
+\label{sec:conclusions}
 
-\textit{Conclusions, discussions and critical comments: on what was learned about the method used and on the results obtained. Possible directions and future improvements?}
+%\textit{Conclusions, discussions and critical comments: on what was learned about the method used and on the results obtained. Possible directions and future improvements?}
+
+During this project, I have written a self-consistent code, which implements several regression algorithms on both pre-generated data and real data. Moreover, it also computes kFold cross validation (with k=5) with manual code on both Linear and ridge Regressions and also computes the code with the use of Scikit learn standard methods for every regression method discussed in this report.
+
+As outputs, program creates a bunch of "png" and "txt" files which are stored inside Output folder (in the directory where script is located). 
+
+Because I haven't accounted for the amount of points present in the real data set, I wasted a lot of time waiting for the script to finish its work. Therefore, I enabled the possibility to use only part of the data set (e.g. $10\%$). However, based on what I saw so far, for the system with very \textit{large amount of points}, \textit{OLS} would be more than enough to fit the model, whereas for \textit{lesser amount of points} (when bias-variance trade of is quite prominent), the better model is \textit{Ridge} Regression. the problem with Lasso regression is that you need to be quite careful to tun your model with correct $\lambda$ first.
+
+Although the program runs without crashing, there are several possible improvements, which would be good to implement in observable future:
+\begin{itemize}
+    \item Reduce the size of the data set without losing  information. During one of the discussions on Piazza, one of the students mentioned possibility to reduce the size of the data set. He/she even mentioned the code snippet which can be used for this and, although I am not sure whether his/her solution is good, the idea itself is very good. If this code doesn't work, maybe I will try to implement something like Huffman Coding or similar thing;
+    \item Better Parallelization. Although I have already implemented this feature, it only works now for calculation of kFold cross validation for various parameters of $\lambda$. I'd like it to be expanded on the entire script;
+    \item One more possible solution I thought of to reduce the time, I can simply split the calculating of KFolds and Regression analysis into separate runs. For instance, right now I am running the entire pipeline, i.e. Polynomial, Ridge, Lasso regressions with its respective Scikit learn analogs. So the idea is to be able to run the code for only one or two methods at once, and if, the user really wants to, run the entire code with all methods implemented;
+\end{itemize}
