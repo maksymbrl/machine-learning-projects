@@ -21,6 +21,10 @@ import time
 # For Data preprocessing
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder, StandardScaler, RobustScaler
+from sklearn.compose import ColumnTransformer
+
+# One Hot Encoder from Keras
+from keras.utils import to_categorical
 
 # initialising pretty printing with sympy 
 # for Latex characters and more
@@ -51,24 +55,44 @@ class NetworkArchitecture:
     def PrepareData(self, *args):
         # Path to data
         dataPath = self.paramData['dataPath']
-        # reading in the data and displaying first values
-        data = pd.read_csv(dataPath, index_col=False)#, header = None, index_col=False)
-        # looking into the data
-        display(data.head(3))
-        # Dropping ID (because we do not need it)
+        '''
+        Checking the format of the file - .csv or .xls
+        and renaming the last column to 'default', to access it
+        more easily
+        '''
+        dataFormat = dataPath[-4:]
+        if dataFormat == '.csv':
+            data = pd.read_csv(dataPath, index_col=False)#, header = None, index_col=False)
+            data.rename(columns={'default.payment.next.month': 'default'}, inplace = True)
+        elif dataFormat == '.xls':
+            nanDict = {}
+            data = pd.read_excel(dataPath, header=1, skiprows=0, index_col=False, na_values=nanDict)
+            data.rename(index=str, columns={"default payment next month": 'default'}, inplace=True)
+        '''
+        Dropping the 'ID' column, because it is no use.
+        Also, renaming the PAY_0 column to PAY_1 for con-
+        sistency. Lastly, making all the columns lower case
+        (I like it more like that :).
+        '''
         data = data.drop('ID', axis = 1)
-        # Checking for missing values
-        for column in data:
-            if data[column].isnull().values.any():
-                print("NaN value/s detected in " + column)
-            else:
-                continue
-                #print("column {} doesn't have null values".format(column))
-        # Renaming Column Pay and also the default one
         data.rename(columns={'PAY_0': 'PAY_1'}, inplace = True)
-        # also making in lower case column names
         data.rename(columns=lambda x: x.lower(), inplace = True)
-        data.rename(columns={'default.payment.next.month': 'default'}, inplace = True)
+        '''
+        Checking if there are missing or NaN data.
+        '''
+        data.info()
+        '''
+        The data quickly checked and it seems that everything is fine.
+        Now, let's take a look for the 10 random data samples.
+        '''
+        display(data.sample(10))#data.head(3))
+        # Checking for missing values
+        #for column in data:
+        #    if data[column].isnull().values.any():
+        #        print("NaN value/s detected in " + column)
+        #    else:
+        #        continue
+                #print("column {} doesn't have null values".format(column))
         '''
         Plotting correlation matrix to see
         which features will affect default the most
@@ -80,35 +104,151 @@ class NetworkArchitecture:
         # Draw the heatmap with the mask and correct aspect ratio
         sbn.heatmap(corr, cmap = cmap, vmin=0,vmax=1, center=0, square=True, annot=True, linewidths=.5)
         '''
-        We can see that PAY and BILL has the highest impact
+        Looking for the most dense regions, it is obvious
+        that we are interested in columns: 
+        "pay_i", "bil_amti" and "pay_amti".
+        However, let us study the data set in a more profound fasion, i.e. individually.
+        '''
+        '''
+        Lat's look into description of individual column. From paper:
+        ID: ID of each client
+        LIMIT_BAL: Amount of given credit in NT dollars (includes individual 
+        and family/supplementary credit)
+        SEX: Gender (1=male, 2=female)
+        EDUCATION: (1=graduate school, 2=university, 3=high school, 4=others)
+        MARRIAGE: Marital status (1=married, 2=single, 3=others)
+        AGE: Age in years
+        PAY_0: Repayment status in September, 2005 
+        (-1=pay duly, 1=payment delay for one month, 2=payment delay for two months, ... 
+        8=payment delay for eight months, 9=payment delay for nine months and above)
+        PAY_2: Repayment status in August, 2005 (scale same as above)
+        PAY_3: Repayment status in July, 2005 (scale same as above)
+        PAY_4: Repayment status in June, 2005 (scale same as above)
+        PAY_5: Repayment status in May, 2005 (scale same as above)
+        PAY_6: Repayment status in April, 2005 (scale same as above)
+        BILL_AMT1: Amount of bill statement in September, 2005 (NT dollar)
+        BILL_AMT2: Amount of bill statement in August, 2005 (NT dollar)
+        BILL_AMT3: Amount of bill statement in July, 2005 (NT dollar)
+        BILL_AMT4: Amount of bill statement in June, 2005 (NT dollar)
+        BILL_AMT5: Amount of bill statement in May, 2005 (NT dollar)
+        BILL_AMT6: Amount of bill statement in April, 2005 (NT dollar)
+        PAY_AMT1: Amount of previous payment in September, 2005 (NT dollar)
+        PAY_AMT2: Amount of previous payment in August, 2005 (NT dollar)
+        PAY_AMT3: Amount of previous payment in July, 2005 (NT dollar)
+        PAY_AMT4: Amount of previous payment in June, 2005 (NT dollar)
+        PAY_AMT5: Amount of previous payment in May, 2005 (NT dollar)
+        PAY_AMT6: Amount of previous payment in April, 2005 (NT dollar)
+        default.payment.next.month: Default payment (1=yes, 0=no)
+        '''
+        
+        '''
+        Trying to describe the data. Since Visualising everything at once 
+        is not that reasonable(quite long table), I am going to visualize data
+        by columns. 
+        Index(['limit_bal', 'sex', 'education', 'marriage', 'age', 'pay_1', 'pay_2',
+               'pay_3', 'pay_4', 'pay_5', 'pay_6', 'bill_amt1', 'bill_amt2',
+               'bill_amt3', 'bill_amt4', 'bill_amt5', 'bill_amt6', 'pay_amt1',
+               'pay_amt2', 'pay_amt3', 'pay_amt4', 'pay_amt5', 'pay_amt6', 'default'],
+              dtype='object')
+        '''
+        #print(data.columns)
+        # Categorical variables description
+        display(data[['limit_bal', 'sex', 'education', 'marriage', 'age']].describe())
+        
+        '''
+        The output:
+        age: ranges 21-79
+        marriage: ranges 0-3, what is 0? => makes sense to put it into 3 other
+        education: 0-6 => 0, 5 and 6 are unlabeled data (according to the data table)
+        sex: 1-2
+        limit_bal: 10^4 - 10^6
+        
+        Let's seee how much data for an education unlabeled data we have
+        '''
+        vals = [0, 4, 5, 6]
+        for val in vals:
+            print("We have {} with education={}".format(len(data.loc[ data["education"]==val]), val))
+        '''
+        There are not that many of them and, I think, It wouldn't harm if I put all of them inside 4 = others
+        for easier classification. <= small data cleaning
+        '''
+        fill = (data['education'] == 5) | (data['education'] == 6) | (data['education'] == 0)
+        data.loc[fill, 'education'] = 4
+        # counting education values after
+        print('After cleaning')
+        display(data['education'].value_counts())
+        # doing the same for marriage
+        fill = (data['marriage'] == 0)
+        data.loc[fill, 'marriage'] = 3
+        print('After cleaning')
+        display(data['marriage'].value_counts())
+        '''
+        So, I have put everything to 4 and 3(educationand marriage), which stands for other.
+        Other means education higher (or lower) than university, i.e. double PhDs or whatever, (than high school).
+        Other in marriage can stand for widowed, for instance.
+        '''
+        
+        '''
+        Let's take a look into the payment data
+        '''
+        display(data[['pay_1', 'pay_2', 'pay_3', 'pay_4', 'pay_5', 'pay_6']].describe())
+        vals = [1, 2, 3, 4, 5, 6]
+        for val in vals:
+            display(data['pay_'+str(val)].value_counts())
+        '''
+        Roughly zeros are like half of the data set. I will just leave it be. However,
+        I thinkit is safe to put all -2 into -1.
+        '''
+        for val in vals:
+            fill = (data['pay_' + str(val)] == -2)
+            data.loc[fill, 'pay_' + str(val)] = -1
+            display(data['pay_'+str(val)].value_counts())
+        
+        '''
+        there is -2 present, which I am not quite sure the meaning of. There is also label 0...
+        '''
+        
+        display(data[['bill_amt1', 'bill_amt2', 'bill_amt3', 'bill_amt4', 'bill_amt5', 'bill_amt6']].describe())
+        '''
+        There are also negative values present. Let's see how many of these values are there
+        '''
+        for val in vals:
+            display(data['bill_amt'+str(val)].value_counts(ascending=True))
+        '''
+        Negative values are what people suppose to pay back? I will just leave it as it is.
+        '''
+            
+        display(data[['pay_amt1', 'pay_amt2', 'pay_amt3', 'pay_amt4', 'pay_amt5', 'pay_amt6']].describe()) 
+        for val in vals:
+            display(data['pay_amt'+str(val)].value_counts(ascending=True))
+        '''
+        There are just some people with a lot of money
         '''
         # Making dummy features (i.e. changing stuff to either 0 or 1)
         # for this we need to add additional columns
         '''
-        From Paper: Education (1 = graduate school; 2 = university; 3 = high school; 4 = others).
-        So, I am going to leave these 4, however, in the data set I saw also 5, which I do not
-        really understand the meaning of, so I will drop this one
+
         '''
         # e.g. if the person was in grad school, we will get 1, 0 otherwise (etc.)
-        data['grad_school']  = (data['education']==1).astype('int')
+        #data['grad_school']  = (data['education']==1).astype('int')
         #data.insert((data['education']==1).astype('int'), data.columns[2], 'grad_school')
-        data['university']   = (data['education']==2).astype('int')
-        data['high_school']  = (data['education']==3).astype('int')
-        data['others']       = (data['education']==4).astype('int')
-        data.drop('education', axis=1, inplace=True)
+        #data['university']   = (data['education']==2).astype('int')
+        #data['high_school']  = (data['education']==3).astype('int')
+        #data['others']       = (data['education']==4).astype('int')
+        #data.drop('education', axis=1, inplace=True)
         
         # repeating the same for sex 
-        data['male'] = (data['sex']==1).astype('int')
-        data.drop('sex', axis=1, inplace=True)
+        #data['male'] = (data['sex']==1).astype('int')
+        #data.drop('sex', axis=1, inplace=True)
         # dumping all singles and others in one category
-        data['married'] = (data['marriage']==2).astype('int')
-        data.drop('marriage', axis=1, inplace=True)
+        #data['married'] = (data['marriage']==2).astype('int')
+        #data.drop('marriage', axis=1, inplace=True)
         
         # I assume that everything which is less than 0
         # is paid on time
-        paynments = ['pay_1','pay_2','pay_3','pay_4','pay_5','pay_6']
-        for pay in paynments:
-            data.loc[data[pay]<=0,pay] = 0
+        #paynments = ['pay_1','pay_2','pay_3','pay_4','pay_5','pay_6']
+        #for pay in paynments:
+        #    data.loc[data[pay]<=0,pay] = 0
             
         # retrieving columns' names
         #dataColumns = data.columns
@@ -118,7 +258,7 @@ class NetworkArchitecture:
         '''
         After all manipulations, the data will look like this
         '''
-        display(data.head(3))
+        display(data.sample(10))
         
         # passing data to further processing
         return data    
@@ -130,20 +270,41 @@ class NetworkArchitecture:
         # getting data
         data = self.PrepareData()
         # Seperate the label into different Dataframe (outcome) and the other features in (data)
-        X = data.drop('default',axis=1)
+        #X = data.drop('default',axis=1)
         # leaving only default
-        Y = data['default']
+        #Y = data['default']
         # adding new axis to the data
-        Y = Y[:, np.newaxis]
-        # Scaling the dataset (we do not scale Y, because it has values either 0 or 1)
+        #Y = Y[:, np.newaxis]
+        X = data.loc[:, data.columns != "default"].values
+        Y = data.loc[:, data.columns == "default"].values
+        print(np.shape(X))
+        # Categorical variables to one-hot's
+        onehotencoder = OneHotEncoder(sparse=False, categories="auto")
+        X = ColumnTransformer([("", onehotencoder, [3]),], remainder="passthrough").fit_transform(X)
+        #X = ColumnTransformer().fit_transform(X)
+        print(np.shape(X))
         #rs = RobustScaler()
         #X = rs.fit_transform(X)
         # Splitting our data into training and test sets
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size = 0.2, random_state = 1)
+        # Scaling the dataset (we do not scale Y, because it has values either 0 or 1)
+        # Scale to zero mean and unit variance
         ss = StandardScaler()
+        rs = RobustScaler()
         X_train = ss.fit_transform( X_train )
         X_test = ss.transform( X_test )
-        #print(X)
+        #print(X_train)
+        #print(Y_train)
+        # One-hot's of the target vector
+        Y_train_onehot = onehotencoder.fit_transform(Y_train.reshape(len(Y_train), -1))
+        Y_test_onehot =  onehotencoder.fit(Y_test.reshape(len(Y_test), -1))
+        
+        #print(Y_train_onehot)
+        #train_y = enc.fit_transform(train_y.reshape(len(train_y), -1))
+ 
+        #test_y = enc.transform(test_y.reshape(len(test_y), -1))
+        
+        #print(Y_train_onehot)
         #display(data.head(3))
         #dataColumns = data.columns
         # manually normalising data
@@ -213,7 +374,7 @@ class NetworkArchitecture:
         # No. of training examples
         m = X_train.shape[1]
         
-        return X_train, X_test, Y_train, Y_test, m
+        return X_train, X_test, Y_train_onehot, Y_test_onehot, m#Y_train, Y_test, m
     
     '''
     Configuring Neural Network:
@@ -263,9 +424,14 @@ class NetworkArchitecture:
         alpha = self.paramData['alpha'] #0.3
         # regularization parameter
         lmbd = self.paramData['lambda'] #0.001
+        # Seed
+        seed = self.paramData['RandomSeed']
         
         
-        return NNType, NNArch, nLayers, nFeatures, nHidden, nOutput, epochs, alpha, lmbd, X_train, X_test, Y_train, Y_test, m, nInput
+        return NNType, NNArch, nLayers, \
+               nFeatures, nHidden, nOutput, \
+               epochs, alpha, lmbd, X_train, \
+               X_test, Y_train, Y_test, m, nInput, seed
     
 '''
 The class used for both classification and regression
@@ -274,8 +440,6 @@ depending on the cost function and the user's desire
 class NeuralNetwork:
     # constructor
     def __init__(self, *args):
-        # random seed, to make the same random number each time
-        np.random.seed(1)
         # type of neuralnetwork
         self.NNType = args[0]
         # Network Architecture
@@ -294,8 +458,13 @@ class NeuralNetwork:
         self.alpha = args[7]
         # regularisation (hyper) parameter
         self.lambd = args[8]
+        
         # Data
-        #self.X = args[9]
+        self.nInput = args[9]
+        #self.nFeatures = 
+        seed = args[10]
+        # random seed, to make the same random number each time
+        np.random.seed(seed)
         #self.Y = args[10]
         #self.m = args[11]
         # Only for printing purpose
@@ -305,17 +474,18 @@ class NeuralNetwork:
             Start {} Neural Network 
         =========================================== 
         No. of hidden layers:        {} 
+        No. of input data:           {}
         No. of input neurons:        {} 
         No. of hidden neurons:       {} 
         No. of output neurons:       {} 
         Activ. Func in Hidden Layer: {} 
         Activ. Func in Output Layer: {} 
-        No. of test features: 
         No. of epochs to see:        {} 
         Learning Rate, \u03B1:            {} 
         Regularization param, \u03BB:     {} 
-                      '''.format(self.NNType, 
-                                 self.nLayers-2, 
+                      '''.format(self.NNType,
+                                 self.nLayers-2,
+                                 self.nInput,
                                  self.nInputNeurons, 
                                  self.nHiddenNeurons, 
                                  self.nOutputNeurons,
@@ -326,8 +496,11 @@ class NeuralNetwork:
                                  self.alpha,
                                  self.lambd)))
     
-        self.nInput = args[9]
-        
+        #print(self.NNArch[0]["LSize"])
+                
+        #print("nInput", nInput)
+        #nFeatures = X_train.shape[1] # <= the amount of variables
+        #print('nFeatures', nFeatures)
     # 
     def InitParams(self, *args):
         # biases and weights for hidden and output layers
@@ -337,13 +510,17 @@ class NeuralNetwork:
         for l in range(1, self.nLayers):
             # weights for each layer (except input one)
             #print(self.nInputNeurons, self.nHiddenNeurons)
-            modelParams['W' + str(l)] = np.random.randn(self.NNArch[l-1]["LSize"], self.NNArch[l]["LSize"])
+            #print(self.NNArch[l-1]["LSize"])
+            modelParams['W' + str(l)] = np.random.randn(self.NNArch[l-1]["LSize"], self.NNArch[l]["LSize"]) #/ np.sqrt(self.NNArch[l-1]["LSize"])
             #print(np.shape(modelParams['W' + str(l)]))
             # biases for each layer (except input one)
             #modelParams['b' + str(l)] = np.zeros((self.NNArch[l]["LSize"], self.nOutputNeurons)) + 0.01
-            modelParams['b' + str(l)] = np.zeros((self.nInput, self.NNArch[l]["LSize"])) + 0.01
+            modelParams['b' + str(l)] = np.zeros((self.nInput, 
+                        self.NNArch[l]["LSize"])) + 0.0001
             #print(np.shape(modelParams['b' + str(l)]))
-            
+            #np.random.randn
+        #print(modelParams)
+        
         return modelParams
     
     # Getting output for each layer
@@ -386,6 +563,8 @@ class NeuralNetwork:
             Z[str(l)] = np.matmul(A[str(l-1)], modelParams['W' + str(l)]) + modelParams['b' + str(l)]
             # applying corresponding activation function
             A[str(l)] = self.GetA(Z[str(l)], l)
+            #if np.isnan(Z[str(l)]):
+            #    print('NaN values spotted')
             #print('l={}: Z={}, A={}' .format(l, np.shape(Z[str(l)]), np.shape(A[str(l)])))
         # returning dictionary of outputs
         return A, Z
@@ -424,24 +603,31 @@ class NeuralNetwork:
         # gradients of the cost function
         # (for each layer)
         dJ = {}
+        #print(self.NNType)
         # Calculating gradients of the cost function for each layer
         # (going from last to first hidden layer)
         for l in reversed(range(1, self.nLayers)):
+            #print(l)
             # calculating error for each layer
             if (l == self.nLayers - 1):
                 delta[str(l)] = A[str(l)] - Y
                 # gradients of output layer (+ regularization)
                 # W^{l} = A^{l-1} * delta^{l}
-                dJ['dW'+str(l)] = np.matmul(A[str(l-1)].T, delta[str(l)]) #+ self.lambd * self.modelParams['W' + str(l)]
-                dJ['db'+str(l)] = np.sum(delta[str(l)], axis=0, keepdims=True)
+                dJ['dW'+str(l)] = (1 / m) * np.matmul(A[str(l-1)].T, delta[str(l)]) #+ self.lambd * self.modelParams['W' + str(l)]
+                dJ['db'+str(l)] = (1 / m) * np.sum(delta[str(l)], axis=0, keepdims=True)
+                #print(dJ['dW'+str(l)].shape)
             else:
                 #dAF = funclib.ActivationFuncs().CallDSigmoid(A[str(l)])
+                
                 dAF = self.GetdAF(A[str(l)], l)
                 delta[str(l)] = np.multiply(np.matmul(delta[str(l+1)], modelParams['W' + str(l+1)].T), dAF)
                 # gradients of the hidden layer
                 # W^{l} = A^{l-1} * delta^{l}
-                dJ['dW'+str(l)] = np.matmul(A[str(l-1)].T, delta[str(l)]) #+ self.lambd * self.modelParams['W' + str(l)]
-                dJ['db'+str(l)] = np.sum(delta[str(l)], axis=0, keepdims=True)
+                dJ['dW'+str(l)] = (1 / m) * np.matmul(A[str(l-1)].T, delta[str(l)]) #+ self.lambd * self.modelParams['W' + str(l)]
+                dJ['db'+str(l)] = (1 / m) * np.sum(delta[str(l)], axis=0, keepdims=True)
+            #print(dJ['dW'+str(l)])
+            #if np.isnan(delta[str(l)].columns.values):
+            #    print('NaN values spotted')
             
         return dJ
     
@@ -450,9 +636,11 @@ class NeuralNetwork:
     def UpdateWeights(self, *args):
         dJ = args[0]
         modelParams = args[1]
+        m = args[2]
         for l in range(1, self.nLayers):
-            modelParams['W' + str(l)] -= dJ['dW' + str(l)] * self.alpha
+            modelParams['W' + str(l)] -= dJ['dW' + str(l)] * self.alpha 
             modelParams['b' + str(l)] -= dJ['db' + str(l)] * self.alpha
+            #print(modelParams['W' + str(l)])
             
         return modelParams
         
@@ -460,25 +648,37 @@ class NeuralNetwork:
     def TrainNetwork(self, *args):
         Xtrain = args[0]
         Ytrain = args[1]
+        #print(Ytrain)
         m = args[2]
         # Initialising parameters
         modelParams = self.InitParams()
         costs =  []
-        # Running Optimisation Algorithm
-        for epoch in range(1, self.epochs+1, 1):
-            # Propagating Forward
-            A, Z = self.DoFeedForward(Xtrain, modelParams)
-            # Calculating cost Function
-            J = funclib.CostFuncs().CallNNLogistic(Ytrain, A[str(self.nLayers-1)], m)
-            # Back propagation - gradients
-            dJ = self.DoBackPropagation(Ytrain, A, Z, modelParams, m)
-            # updating weights
-            modelParams = self.UpdateWeights(dJ, modelParams)
-            # getting values of cost function at each epoch
-            if(epoch % 100 == 0):
-                print('Cost after iteration# {:d}: {:f}'.format(epoch, J))
-            costs.append(J)
+        if self.NNType == 'Classification':
+            # Running Optimisation Algorithm
+            for epoch in range(1, self.epochs+1, 1):
+                # Propagating Forward
+                A, Z = self.DoFeedForward(Xtrain, modelParams)
+                # Calculating cost Function
+                J = funclib.CostFuncs().CallNNLogistic(Ytrain, A[str(self.nLayers-1)], m)
+                #print(J)
+                # Back propagation - gradients
+                dJ = self.DoBackPropagation(Ytrain, A, Z, modelParams, m)
+                #print(dJ)
+                # updating weights
+                modelParams = self.UpdateWeights(dJ, modelParams, m)
+                # getting values of cost function at each epoch
+                if(epoch % 100 == 0):
+                    print('Cost after iteration# {:d}: {:f}'.format(epoch, J))
+                costs.append(J)
+            # returning set of optimal model parameters
+            return modelParams, costs
+        elif self.NNType == 'Regression':
+            print('Regression has yet to be implemented')
+            # returning set of optimal model parameters
+            return None, None
+        else:
+            Exception('It is neither Regression nor Classification task! Check Parameter File.')
         
         # returning set of optimal model parameters
-        return modelParams, costs
+        #return modelParams, costs
     

@@ -35,7 +35,8 @@ class ActivationFuncs:
     # Derivative of sigmoid
     def CallDSigmoid(self, *args):
         z = args[0]
-        return self.CallSigmoid(z) * (1 - self.CallSigmoid(z))
+        p = self.CallSigmoid(z)
+        return p * (1 - p)
     
     # tanh Function
     def CallTanh(self, *args):
@@ -60,12 +61,35 @@ class ActivationFuncs:
     
     # Softmax function
     def CallSoftmax(self, *args):
+        # We need to normalize this function, otherwise we will 
+        # get nan in the output
         z = args[0]
-        return np.exp(z) / np.sum(np.exp(z), axis=1, keepdims=True)
+        
+        # We can choose an arbitrary value for log(C) term, 
+        # but generally log(C)=−max(a) is chosen, as it shifts
+        # all of elements in the vector to negative to zero, 
+        # and negatives with large 
+        p = np.exp(z - np.max(z))#, axis=1, keepdims = True))
+        return p / np.sum(p, axis=0)#np.sum(np.exp(z), axis=1, keepdims=True)
     
+    # Softmax gradient (in Vectorized form, 
+    # also possible to write in element wise)
     def CallDSoftmax(self, *args):
         z = args[0]
-        return self.CallSoftmax(z) * (1 - self.CallSoftmax(z))
+        #print('Softmax, z shape is', z.shape)
+        m = z.shape[0]
+        p = self.CallSoftmax(z)
+        #p = p.reshape(-1,1)
+        #jacobian_m = np.diag(p)
+        #for i in range(len(jacobian_m)):
+        #    for j in range(len(jacobian_m)):
+        #        if i == j:
+        #            jacobian_m[i][j] = p[i] * (1-p[i])
+        #        else: 
+        #            jacobian_m[i][j] = -p[i]*p[j]
+        #p = p.reshape(-1,1)
+        #trying something else
+        return p * (1 - p) #np.diagflat(p)#jacobian_m#p * (1 - p)#np.diagflat(p) - np.matmul(p, p.T)
         
         
 '''
@@ -148,7 +172,8 @@ class CostFuncs:
         h = args[2]
         m = np.size(y)
         # cost function
-        J = -np.sum(y*np.log(h) +(1-y)*np.log(1-h)) / m
+        J = -np.sum(y * np.log(h) +(1-y) * np.log(1-h)) / m
+        J = np.squeeze(J)
         # its gradient
         dJ = np.dot(X.T, h - y) / m
         return J, dJ
@@ -158,12 +183,15 @@ class CostFuncs:
         Y = args[0]
         AL = args[1]
         m = args[2]
+        #print(m)
+        #print(AL)
         #AL[AL == 1] = 0.999 # if AL=0 we get an error, alternatively, I could set J=0 in this case
         #AL[AL==0] = AL+1e-07
         #AL = np.ravel(AL)
         #print("Y is",np.shape(Y))
         #print('AL is',np.shape(AL))
-        J = -np.sum(np.multiply(Y, np.log(AL+1e-07)) +  np.multiply(1-Y, np.log(1-AL+1e-07)))/m
+        J = -np.sum(np.multiply(Y, np.log(AL+1e-15)) +  np.multiply(1-Y, np.log(1-AL+1e-15)))/m
+        #print(np.multiply(Y, np.log(AL+1e-07)))
         J = np.squeeze(J)
 
         return J
