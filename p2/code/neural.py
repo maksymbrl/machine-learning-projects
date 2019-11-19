@@ -332,6 +332,7 @@ class NetworkArchitecture:
         #Y = Y[:, np.newaxis]
         X = data.loc[:, data.columns != "default"].values
         Y = data.loc[:, data.columns == "default"].values
+        print(np.shape(Y))
         #features = X
         #stdX = (features - features.mean()) / (features.std())
         #print(stdX)
@@ -339,9 +340,9 @@ class NetworkArchitecture:
         # I could do this in pandas or Keras, but I will go with this one
         # because I can? :)
         onehotencoder = OneHotEncoder(sparse=False, categories="auto")
-        X = ColumnTransformer([("", onehotencoder, [3]),], remainder="passthrough").fit_transform(X)
+        X = ColumnTransformer([("", onehotencoder, [3])], remainder="passthrough").fit_transform(X)
         #X = ColumnTransformer().fit_transform(X)
-        print(np.shape(X))
+        #print(np.shape(X))
         #rs = RobustScaler()
         #X = rs.fit_transform(X)
         # Splitting our data into training and test sets
@@ -356,8 +357,10 @@ class NetworkArchitecture:
         #print(X_train)
         #print(Y_train)
         # One-hot's of the target vector
-        Y_train_onehot = onehotencoder.fit_transform(Y_train.reshape(len(Y_train), -1))
-        Y_test_onehot =  onehotencoder.fit(Y_test.reshape(len(Y_test), -1))
+        Y_train_onehot = to_categorical(Y_train)#onehotencoder.fit_transform(Y_train.reshape(len(Y_train), -1))
+        Y_test_onehot =  to_categorical(Y_test)#onehotencoder.fit(Y_test.reshape(len(Y_test), -1))
+        
+        print("Y_train shape", np.shape(Y_train))
         
         #print(Y_train_onehot)
         #train_y = enc.fit_transform(train_y.reshape(len(train_y), -1))
@@ -434,7 +437,7 @@ class NetworkArchitecture:
         # No. of training examples
         m = X_train.shape[1]
         
-        return X_train, X_test, Y_train_onehot, Y_test_onehot, m#Y_train, Y_test, m
+        return X_train, X_test, Y_train, Y_test, Y_train_onehot, Y_test_onehot, m, onehotencoder#Y_train, Y_test, m
     
     '''
     Configuring Neural Network:
@@ -444,7 +447,7 @@ class NetworkArchitecture:
     def CreateNetwork(self, *args):
         # Getting processed data <= it will not be changed in this stage
         # I am using to just identify some key features of the NN
-        X_train, X_test, Y_train, Y_test, m = self.ProcessData()
+        X_train, X_test, Y_train, Y_test, Y_train_onehot, Y_test_onehot, m, onehotencoder = self.ProcessData()
         # NNtype
         NNType = self.paramData['type'] #['Classification', 'Regression']
         # Layer Architecture
@@ -486,12 +489,15 @@ class NetworkArchitecture:
         lmbd = self.paramData['lambda'] #0.001
         # Seed
         seed = self.paramData['RandomSeed']
+        # Batch Size
+        BatchSize = self.paramData['BatchSize']
         
         
         return NNType, NNArch, nLayers, \
                nFeatures, nHidden, nOutput, \
                epochs, alpha, lmbd, X_train, \
-               X_test, Y_train, Y_test, m, nInput, seed
+               X_test, Y_train, Y_test, Y_train_onehot, Y_test_onehot, m,\
+               nInput, seed, onehotencoder, BatchSize
     
 '''
 The class used for both classification and regression
@@ -523,6 +529,8 @@ class NeuralNetwork:
         self.nInput = args[9]
         #self.nFeatures = 
         seed = args[10]
+        # Batch Size
+        self.BatchSize = args[11]
         # random seed, to make the same random number each time
         np.random.seed(seed)
         #self.Y = args[10]
@@ -706,12 +714,40 @@ class NeuralNetwork:
             
         return modelParams
         
+    
+    # Creating a list of mini-batches
+    def CreateMiniBatches(self, *args):
+        X = args[0]
+        Y = args[1]
+        batchSize = args[2]
+        
+        miniBatches = [] 
+        data = np.hstack((X, Y))
+        # shuffling data set randomly
+        np.random.shuffle(data) 
+        nMiniBatches = data.shape[0] // batchSize 
+        i = 0
+      
+        for i in range(nMiniBatches + 1): 
+            miniBatch = data[i * batchSize:(i + 1)*batchSize, :] 
+            X_mini = miniBatch[:, :-1] 
+            Y_mini = miniBatch[:, -1].reshape((-1, 1)) 
+            miniBatches.append((X_mini, Y_mini)) 
+        if data.shape[0] % batchSize != 0: 
+            miniBatch = data[i * batchSize:data.shape[0]] 
+            X_mini = miniBatch[:, :-1] 
+            Y_mini = miniBatch[:, -1].reshape((-1, 1)) 
+            miniBatches.append((X_mini, Y_mini)) 
+        return miniBatches 
+    
     # Train Neural Network
-    def TrainNetwork(self, *args):
+    def TrainNetworkGD(self, *args):
         Xtrain = args[0]
         Ytrain = args[1]
         #print(Ytrain)
         m = args[2]
+        print(self.CreateMiniBatches(Xtrain, Ytrain, self.BatchSize))
+        
         # Initialising parameters
         modelParams = self.InitParams()
         costs =  []

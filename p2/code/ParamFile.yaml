@@ -5,7 +5,7 @@
 # Type of task to address
 type:           'Classification' #['Classification', 'Regression']
 # Path to data
-dataPath:       'data/credit_data.csv'
+dataPath:       'data/credit_data.xls'
 # Specify the seed
 RandomSeed:     1
 # Choose number of layers (can be any number)
@@ -18,10 +18,10 @@ outputFunc:     'softmax'
 nHiddenNeurons: 25
 nOutputNeurons: 2 # for binary classification tasks it is 1 or 2
 # Epochs to train the algorithm
-epochs:         1000
+epochs:         1
 # Batch size for Gradient Descent => if 0, will use simple gradient descent
-BatchSize:      10
+BatchSize:      100
 # Learning rate
-alpha:          0.1
+alpha:          0.01
 # Regularisation
 lambda:         0.1 # if 0then no regularisation used

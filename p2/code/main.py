@@ -19,12 +19,14 @@ import pandas as pd
 # Scikitlearn imports to check results
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV, train_test_split
-from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix, accuracy_score, roc_auc_score, classification_report
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
+from numpy import argmax
 
 # We'll need some metrics to evaluate our models
 from sklearn.metrics import confusion_matrix, f1_score
 from sklearn.model_selection import cross_val_score
+from sklearn.neural_network import MLPClassifier, MLPRegressor
 
 import keras
 # stochastic gradient descent
@@ -40,7 +42,7 @@ import neural
 import time
 
 # Feed Forward Neural Network
-
+    
 
 '''
 Main Body of the Program
@@ -57,8 +59,10 @@ if __name__ == '__main__':
     arch = neural.NetworkArchitecture(paramFile)
     NNType, NNArch, nLayers, nFeatures, \
     nHidden, nOutput, epochs, alpha, lmbd, \
-    X_train, X_test, Y_train, Y_test, \
-    m, nInput, seed = arch.CreateNetwork()
+    X_train, X_test, Y_train, Y_test, Y_train_onehot, Y_test_onehot,\
+    m, nInput, seed, onehotencoder, BatchSize = arch.CreateNetwork()
+    
+    #print("onehotencoder", onehotencoder)
     
     #print("nFeatures", nFeatures)
     '''
@@ -109,7 +113,7 @@ if __name__ == '__main__':
             A = activeFuncs.CallSigmoid(Y_pred)#CallSigmoid(Y_pred)
             #print(A)
             # cost function        
-            J, dJ = costFuncs.CallLogistic(X_train, Y_train, A)
+            J, dJ = costFuncs.CallLogistic(X_train, Y_train_onehot, A)
             # Adding regularisation
             J = J + lmbd / (2*m) * np.sum(theta**2)
             dJ = dJ + lmbd * theta / m
@@ -163,15 +167,38 @@ if __name__ == '__main__':
                                          nLayers, nFeatures, \
                                          nHidden, nOutput, \
                                          epochs, alpha, \
-                                         lmbd, nInput, seed)
-        modelParams, costs = neuralNet.TrainNetwork(X_train, Y_train, m)
+                                         lmbd, nInput, seed, BatchSize)
+        modelParams, costs = neuralNet.TrainNetworkGD(X_train, Y_train_onehot, m)
         
-        #print(NNArch[1]['AF'])
+        print(nHidden)
+        # Classify using sklearn
+        clf = MLPClassifier(solver="lbfgs", alpha=alpha, hidden_layer_sizes=nHidden)
+        clf.fit(X_train, Y_train)
+        yTrue, yPred = Y_test, clf.predict(X_test)
+        print(classification_report(yTrue, yPred))
+        print("Roc auc: ", roc_auc_score(yTrue,yPred))
+        
         print('''
               Initialising Keras
               ''')
-        #classifier = Sequential()
+        # decoding from keras
+        #print(np.shape(Y_train))
+        #Y_train = np.argmax(Y_train, axis=1)#.reshape(1,-1)
+        #print(np.shape(Y_train))
+        
+        classifier = Sequential()
+        print("nHidden", nHidden)
 
+        for layer in range(1, nLayers):
+            if layer == 0:
+                classifier.add(Dense(nHidden, activation=NNArch[layer]['AF'], \
+                                     kernel_initializer='random_normal', input_dim=nFeatures))
+            elif layer == nLayers-1:
+                classifier.add(Dense(nOutput, activation=NNArch[layer]['AF'], \
+                                     kernel_initializer='random_normal'))
+            else:
+                classifier.add(Dense(nHidden, activation=NNArch[layer]['AF'], \
+                                     kernel_initializer='random_normal'))
         # Random normal initializer generates tensors with a normal distribution.
         #First Hidden Layer
         #classifier.add(Dense(nHidden, activation=NNArch[1]['AF'], kernel_initializer='random_normal', input_dim=nFeatures))
@@ -179,17 +206,40 @@ if __name__ == '__main__':
         #classifier.add(Dense(nHidden, activation=NNArch[1]['AF'], kernel_initializer='random_normal'))
         #Output Layer
         #classifier.add(Dense(nOutput, activation=NNArch[2]['AF'], kernel_initializer='random_normal'))
-        #Compiling the neural network
+                
         '''
         To optimize our neural network we use Adam. Adam stands for Adaptive 
         moment estimation. Adam is a combination of RMSProp + Momentum.
         '''
+        #print(np.shape(Y_train))
+        #Y_train = Y_train.reshape(1,-1)
+        #decoded = Y_train.dot(onehotencoder.active_features_).astype(int)
+        # invert the one hot encoded data
+        #inverted = onehotencoder.inverse_transform([argmax(Y_train[:, :])])
+        #print(Y_train)
+        #Y_train = Y_train.reshape(-1,1)
+        #print(inverted)
         # Stochatic gradient descent
-        #sgd = SGD(lr=alpha)
-        #classifier.compile(optimizer = sgd, loss='binary_crossentropy', metrics =['accuracy'])
+        sgd = SGD(lr=alpha)
+        classifier.compile(optimizer = sgd, loss='binary_crossentropy', metrics =['accuracy'])
         #Fitting the data to the training dataset
-        #classifier.fit(X_train, Y_train, batch_size=10, epochs = epochs)
+        classifier.fit(X_train, Y_train_onehot, batch_size=BatchSize, epochs = epochs)
         
+        
+        #def build_model(hidden_layer_sizes):
+        #  model = Sequential()
+        
+        #  model.add(Dense(hidden_layer_sizes[0], input_dim=2))
+        #  model.add(Activation('tanh'))
+        
+        #  for layer_size in hidden_layer_sizes[1:]:
+        #    model.add(Dense(layer_size))
+        #    model.add(Activation('tanh'))
+        
+        #  model.add(Dense(1))
+        #  model.add(Activation('sigmoid'))
+        
+        #  return model
         
         #def build_model(hidden_layer_sizes):
         #  model = Sequential()
@@ -210,10 +260,10 @@ if __name__ == '__main__':
         #my_logger = MyLogger(n=50)
         #h = model.fit(train_x, train_y, batch_size=32, epochs=max_epochs, verbose=0, callbacks=[my_logger])
         
-        #np.set_printoptions(precision=4, suppress=True)
-        #eval_results = classifier.evaluate(X_test, Y_test, verbose=0) 
-        #print("\nLoss, accuracy on test data: ")
-        #print("%0.4f %0.2f%%" % (eval_results[0], eval_results[1]*100))
+        np.set_printoptions(precision=4, suppress=True)
+        eval_results = classifier.evaluate(X_test, Y_test_onehot, verbose=0) 
+        print("\nLoss, accuracy on test data: ")
+        print("%0.4f %0.2f%%" % (eval_results[0], eval_results[1]*100))
         
     else:
         '''
