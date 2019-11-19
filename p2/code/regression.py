@@ -12,7 +12,27 @@ import sympy as sp
 # from sympy import *
 import itertools as it
 
+import multiprocessing as mp
+from joblib import Parallel, delayed
+
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib
+import matplotlib.pyplot as plt
+import seaborn as sbn
+
+from sklearn.preprocessing import PolynomialFeatures
+# regression libraries
+from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
+from sklearn.linear_model import Lasso
+from sklearn.metrics import mean_squared_error
+# to split data for testing and training - KFold cross validation implementation
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold
+from sklearn.model_selection import cross_val_score
+
 import funclib
+import data_processing
 
 '''
 Class, which handles both Logistic and Linear Regressions
@@ -28,31 +48,66 @@ class RegressionPipeline:
         # Liner Regression variables
         #=====================================================================#
         # symbolic variables
-        x_symb = args[0]
+        #x_symb = args[0]
         # array of values for each variable/feature
-        x_vals = args[1]
+        #x_vals = args[1]
         # grid values
-        x = args[2]
-        y = args[3]
-        z = args[4]
+        #x = args[2]
+        #y = args[3]
+        #z = args[4]
         # 1.96 to calculate stuff with 95% confidence
-        confidence = args[5]
+        #confidence = args[5]
         # noise variance - for confidence intervals estimation
-        sigma = args[6]
+        #sigma = args[6]
         # k-value for Cross validation
-        kfold = args[7]
+        #kfold = args[7]
         # hyper parameter
-        lambda_par = args[8]
+        #lambda_par = args[8]
         # directory where to store plots
-        output_dir = args[9]
-        prefix = args[10]
+        #output_dir = args[9]
+        #prefix = args[10]
         # degree of polynomial to fit
-        poly_degree = args[11]
+        #poly_degree = args[11]
         #=====================================================================#
-        func = funclib.NormalFuncs()
+        funcNormal = funclib.NormalFuncs()
+        funcError = funclib.ErrorFuncs()
+        funcPlot  = funclib.PlotFuncs()
+        X = args[0]
+        x = args[1]
+        y = args[2]
+        z = args[3]
+        x_rav = args[4]
+        y_rav = args[5]
+        z_rav = args[6]
+        zshape = args[7]
+        poly_degree = args[8]
+        lambda_par = args[9]
+        sigma = args[10]
+        outputPath = [11]
         # getting the design matrix
-        X = func.ConstructDesignMatrix(x_symb, x_vals, poly_degree)
+        #X = func.ConstructDesignMatrix(x_symb, x_vals, poly_degree)
+        # getting the Ridge/OLS Regression via direct multiplication
+        ztilde_ridge = funcNormal.CallNormal(X, z_rav, lambda_par, sigma)
+        ztilde_ridge = ztilde_ridge.reshape(zshape)
         
+        ''' Scikit Learn '''
+        poly_features = PolynomialFeatures(degree = poly_degree)
+        X_scikit = np.swapaxes(np.array([x_rav, y_rav]), 0, 1)
+        X_poly = poly_features.fit_transform(X_scikit)
+        ridge_reg = Ridge(alpha = lambda_par, fit_intercept=True).fit(X_poly, z_rav)
+        ztilde_sk = ridge_reg.predict(X_poly).reshape(zshape)
+        zarray_ridge = [z, ztilde_ridge, ztilde_sk]
+        print('\n')
+        print("Ridge MSE (no CV) - " + str(funcError.CallMSE(zarray_ridge[0], zarray_ridge[1])) + "; sklearn - " + str(mean_squared_error(zarray_ridge[0], zarray_ridge[2])))
+        print("Ridge R^2 (no CV) - " + str(funcError.CallR2(zarray_ridge[0], zarray_ridge[1])) + "; sklearn - " + str(ridge_reg.score(X_poly, z_rav)))
+        print('\n')
+        ''' Plotting Surfaces '''
+        filename = 'ridge_p' + str(poly_degree).zfill(2) + '_n.png'
+        funcPlot.PlotSurface(x, y, zarray_ridge, outputPath, filename)
+        #filename = self.prefix + '_ridge_p' + str(self.poly_degree).zfill(2) + '_n' + npoints_name + '.png'
+        #lib.plotSurface(self.x, self.y, zarray_ridge, self.output_dir, filename)
+        
+        #PlotSurface.PlotFuncs()
         
         
         

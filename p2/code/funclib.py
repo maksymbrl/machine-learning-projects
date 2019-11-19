@@ -17,6 +17,9 @@ import math as mt
 # for polynimial manipulation
 import sympy as sp
 import itertools as it
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import seaborn as sbn
 
 '''
 Class which contains all activation functions
@@ -225,7 +228,7 @@ class ErrorFuncs:
         pass
     
     # MSNE
-    def CallMSNE(self, *args):
+    def CallMSE(self, *args):
         z_data = args[0]
         z_model = args[1]
         n = np.size(z_model)
@@ -260,11 +263,11 @@ class NormalFuncs:
     '''
     def ConstructDesignMatrix(self, *args):
         # the degree of polynomial to be generated
-        poly_degree = args[0]
+        poly_degree = args[2]
         # getting inputs
         #x_vals = self.x_vals
-        x_symb = args[1]
-        x_vals = args[2]
+        x_symb = args[0]
+        x_vals = args[1]
         # using itertools for generating all possible combinations
         # of multiplications between our variables and 1, i.e.:
         # x_0*x_1*1, x_0*x_0*x_1*1 etc. => will get polynomial
@@ -356,4 +359,37 @@ class DataFuncs:
         term3 = 0.5 * np.exp(-(9 * x - 7) ** 2 / 4.0 - 0.25 * ((9 * y - 3) ** 2))
         term4 = -0.2 * np.exp(-(9 * x - 4) ** 2 - (9 * y - 7) ** 2)
         return term1 + term2 + term3 + term4
+    
+'''
+Class which contains ll plotting functions
+'''
+class PlotFuncs:
+    # constructorf
+    def __init__(self, *args):
+        pass
+    
+    # Plotting Surface Just to see that we Succeeded
+    def PlotSurface(self, *args):
+        # passing coordinates
+        x = args[0]
+        y = args[1]
+        # takes an array of z values
+        zarray = args[2]
+        # output dir
+        output_dir = args[3]
+        # filename
+        filename = args[4]
+        # Turning interactive mode on
+        #plt.ion()
+        fig = plt.figure(figsize=(10, 3))
+        axes = [fig.add_subplot(1, 3, i, projection='3d') for i in range(1, len(zarray) + 1)]
+        surf = [axes[i].plot_surface(x, y, zarray[i], alpha = 0.5,
+                                     cmap = 'brg_r', linewidth = 0, antialiased = False) for i in range(len(zarray))]
+        # saving figure with corresponding filename
+        fig.savefig(output_dir + '/' + filename)
+        # close the figure window
+        #plt.close(fig)
+        plt.show()
+        # turning the interactive mode off
+        #plt.ioff()
     

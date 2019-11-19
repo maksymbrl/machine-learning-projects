@@ -84,6 +84,11 @@ if __name__ == '__main__':
         paramData = yaml.load(f, Loader = yaml.FullLoader)
         
     NNType = paramData['type']
+    outputPath = paramData['outputPath']
+    if not os.path.exists(outputPath):
+        os.makedirs(outputPath)
+    
+    
     
     if (NNType == 'Classification'):
         NNType, NNArch, nLayers, nFeatures, \
@@ -93,6 +98,7 @@ if __name__ == '__main__':
         BatchSize, Optimization = dataProc.CreateNetwork()
     elif (NNType == 'Regression'):
         print('Regression')
+        dataProc.ProcessData()
     
     #print("onehotencoder", onehotencoder)
     

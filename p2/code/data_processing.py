@@ -9,6 +9,11 @@ Created on Wed Nov 13 11:29:25 2019
 import os
 import sys
 import numpy as np
+import numpy as np
+# for polynomial manipulation
+import sympy as sp
+# from sympy import *
+import itertools as it
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -39,6 +44,7 @@ from sympy import * #init_printing
 # import manual libraries
 import funclib #, data_processing
 import regression
+import neural
 
     
 '''
@@ -54,11 +60,13 @@ class NetworkArchitecture:
             self.paramData = yaml.load(f, Loader = yaml.FullLoader)
             #sorted = yaml.dump(paramData, sort_keys = True)
             #print(self.paramData)
+            
     
     # Method to prepare the data
     def PrepareData(self, *args):
         # Path to data
         dataPath = self.paramData['dataPath']
+        outputPath = self.paramData['outputPath']
         NNType = self.paramData['type']
         # If data is of classification type, then process corresponding data set
         if (NNType == 'Classification'):
@@ -328,7 +336,7 @@ class NetworkArchitecture:
             for i in range(n_vars):
                 x_vals[i] = np.arange(0, 1, 1./N_points)#np.sort(np.random.uniform(0, 1, N_points))
             # library object instantiation
-            #lib = rl.RegressionLibrary(x_symb, x_vals)
+            #lib = regression.RegressionPipeline(x_symb, x_vals)
             dataFunc = self.paramData['function']
             if dataFunc == 'Franke':
                 # setting up the grid
@@ -346,6 +354,7 @@ class NetworkArchitecture:
     def ProcessData(self, *args):
         # getting data
         data = self.PrepareData()
+        outputPath = self.paramData['outputPath']
         NNType = self.paramData['type']
         # If data is of classification type, then process corresponding data set
         if (NNType == 'Classification'):
@@ -391,7 +400,7 @@ class NetworkArchitecture:
             The only 2 values are Gender and Region which 
             need to converted into numerical data
             '''
-            
+            '''
             # insert a column of 1's as the first entry in the feature
             # vector -- this is a little trick that allows us to treat
             # the bias as a trainable parameter *within* the weight matrix
@@ -400,11 +409,62 @@ class NetworkArchitecture:
             #Y = Y[:, np.newaxis]
             #theta = np.zeros((X.shape[1], 1))
             # No. of training examples
+            '''
             m = X_train.shape[1]
             
             return X_train, X_test, Y_train, Y_test, Y_train_onehot, Y_test_onehot, m, onehotencoder#Y_train, Y_test, m
         
         elif (NNType == 'Regression'):
+            x_symb, x_vals, x, y, z = data
+            n_vars = self.paramData['nVars']
+            N_points = self.paramData['nPoints']
+            sigma = self.paramData['noise']
+            poly_degree = self.paramData['degree']
+            lambda_par = self.paramData['lambda']
+            #print(type(poly_degree))
+            #nproc = args[0]
+            # for plotting betas (this valu will appear in the file name <= doesn't affect calculations)
+            #npoints_name = args[1]
+            #curr_lambda = args[2]
+            # library object instantiation
+            #lib = rl.RegressionLibrary(self.x_symb, self.x_vals)
+            # raveling variables (making them 1d
+            x_rav, y_rav, z_rav = np.ravel(x), np.ravel(y), np.ravel(z)
+            # shape of z
+            zshape = np.shape(z)
+            #==============================================================================================================#
+            ''' Linear Regression '''
+            #==============================================================================================================#
+            ''' MANUAL '''
+            # getting design matrix
+            func = funclib.NormalFuncs()
+            # getting the design matrix
+            X = func.ConstructDesignMatrix(x_symb, x_vals, poly_degree)
+            # Dump everything into Regression Pipeline
+            regression.RegressionPipeline().DoLinearRegression(X, x, y, z, x_rav, \
+                                         y_rav, z_rav, zshape, \
+                                         poly_degree, lambda_par, sigma, outputPath)
+            
+            #''' MANUAL '''
+            #ztilde_ridge, beta_ridge, beta_min, beta_max = lib.doRidgeRegression(X, z_rav, self.lambda_par, self.confidence, self.sigma)
+            #ztilde_ridge = ztilde_ridge.reshape(zshape)
+            #''' Scikit Learn '''
+            #ridge_reg = Ridge(alpha = self.lambda_par, fit_intercept=True).fit(X_poly, z_rav)
+            #ztilde_sk = ridge_reg.predict(X_poly).reshape(zshape)
+            #zarray_ridge = [self.z, ztilde_ridge, ztilde_sk]
+            #print('\n')
+            #print("Ridge MSE (no CV) - " + str(lib.getMSE(zarray_ridge[0], zarray_ridge[1])) + "; sklearn - " + str(mean_squared_error(zarray_ridge[0], zarray_ridge[2])))
+            #print("Ridge R^2 (no CV) - " + str(lib.getR2(zarray_ridge[0], zarray_ridge[1])) + "; sklearn - " + str(ridge_reg.score(X_poly, z_rav)))
+            #print('\n')
+            #''' Plotting Surfaces '''
+            #filename = self.prefix + '_ridge_p' + str(self.poly_degree).zfill(2) + '_n' + npoints_name + '.png'
+            #lib.plotSurface(self.x, self.y, zarray_ridge, self.output_dir, filename)
+            
+            #PlotSurface.PlotFuncs()
+            #X = lib.constructDesignMatrix(self.poly_degree)
+            # getting predictions
+            #ztilde_lin, beta_lin, beta_min, beta_max = lib.doLinearRegression(X, z_rav, self.confidence, self.sigma)
+            #ztilde_lin = ztilde_lin.reshape(zshape)
             
             return
         
