@@ -237,9 +237,11 @@ class ErrorFuncs:
         z_model = args[1]
         return 1 - np.sum((z_data - z_model)**2) / np.sum((z_data - np.mean(z_data))**2)
     
+    # I will be using scikit functionalities
+    # To estimate errors etc.
     # Accuracy
-    def CallAccuracy(self, *args):
-        return
+    #def CallAccuracy(self, *args):
+    #    return
     
 '''
 Class which holds all Normal equations, 
@@ -256,7 +258,7 @@ class NormalFuncs:
     using Newton's Binomial formula, and when returning the design matrix,
     computed from the list of all variables
     '''
-    def CallDesignMatrix(self, *args):
+    def ConstructDesignMatrix(self, *args):
         # the degree of polynomial to be generated
         poly_degree = args[0]
         # getting inputs
@@ -281,8 +283,7 @@ class NormalFuncs:
         # returning constructed design matrix (for 2 approaches if needed)
         return X1
     '''
-    Normal Equation with lambda,
-    i.e. it is a Ridge Regression
+    Normal Equation with lambda, i.e. it is a Ridge Regression
     (set lambda = 0 to get OLS)
     '''
     def CallNormal(self, *args):
