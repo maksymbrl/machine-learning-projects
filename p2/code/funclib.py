@@ -69,8 +69,10 @@ class ActivationFuncs:
         # but generally log(C)=−max(a) is chosen, as it shifts
         # all of elements in the vector to negative to zero, 
         # and negatives with large 
-        p = np.exp(z - np.max(z))#, axis=1, keepdims = True))
-        return p / np.sum(p, axis=0)#np.sum(np.exp(z), axis=1, keepdims=True)
+        #p = np.exp(z - np.max(z))#, axis=1, keepdims = True))
+        #return p / np.sum(p, axis=0)#np.sum(np.exp(z), axis=1, keepdims=True)
+        p = np.exp(z - np.max(z))#np.exp(z)
+        return p / np.sum(p, axis=1, keepdims=True)
     
     # Softmax gradient (in Vectorized form, 
     # also possible to write in element wise)
@@ -91,6 +93,14 @@ class ActivationFuncs:
         #trying something else
         return p * (1 - p) #np.diagflat(p)#jacobian_m#p * (1 - p)#np.diagflat(p) - np.matmul(p, p.T)
         
+    
+        # identity
+    def CallIdentity(self, *args):
+        z = args[0]
+        return z
+
+    def CallDIdentity(self, *args):
+        return 1
         
 '''
 Class which contains all Gradient Methods:
@@ -182,7 +192,10 @@ class CostFuncs:
     def CallNNLogistic(self, *args):
         Y = args[0]
         AL = args[1]
-        m = args[2]
+        modelParams = args[2]
+        nLayers = args[3]
+        m = args[4]
+        lambd = args[5]
         #print(m)
         #print(AL)
         #AL[AL == 1] = 0.999 # if AL=0 we get an error, alternatively, I could set J=0 in this case
@@ -190,7 +203,15 @@ class CostFuncs:
         #AL = np.ravel(AL)
         #print("Y is",np.shape(Y))
         #print('AL is',np.shape(AL))
-        J = -np.sum(np.multiply(Y, np.log(AL+1e-15)) +  np.multiply(1-Y, np.log(1-AL+1e-15)))/m
+        J = -np.sum(np.multiply(Y, np.log(AL+1e-10)) +  np.multiply(1-Y, np.log(1-AL+1e-10)))/m
+        # sum of all weights (for all layers, except input one)
+        Wtot = 0
+        # Computing Regularisation Term for n layer NN
+        for l in range(1, nLayers, 1):
+            Wtot += np.sum(np.square(modelParams['W' + str(l)]))
+        Wtot = Wtot * lambd / (2*m)
+        J = J + Wtot
+        #L2_regularization_cost = (np.sum(np.square(W1)) + np.sum(np.square(W2)))*(lambd/(2*m))
         #print(np.multiply(Y, np.log(AL+1e-07)))
         J = np.squeeze(J)
 

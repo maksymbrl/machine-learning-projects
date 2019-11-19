@@ -78,6 +78,7 @@ if __name__ == '__main__':
         print('''
               Logistic Regression Via Manual Coding
               ''')
+        
         activeFuncs = funclib.ActivationFuncs()
         costFuncs = funclib.CostFuncs()
         # load the data from the file
@@ -105,16 +106,19 @@ if __name__ == '__main__':
         costs = []
         for epoch in epochs1:
             Y_pred = np.dot(X_train, theta)
-            A = activeFuncs.CallSigmoid(Y_pred)
+            A = activeFuncs.CallSigmoid(Y_pred)#CallSigmoid(Y_pred)
             #print(A)
             # cost function        
             J, dJ = costFuncs.CallLogistic(X_train, Y_train, A)
-            
+            # Adding regularisation
+            J = J + lmbd / (2*m) * np.sum(theta**2)
+            dJ = dJ + lmbd * theta / m
             #print(J, "\n", dJ)
             # updating weights
-            theta = theta - alpha * dJ
+            theta = theta - alpha * dJ #+ lmbd * theta/m
             # updating cost func history
             costs.append(J)
+        
         # Using Logistic regression
         #logReg = LogisticRegression(n_jobs=-1, random_state=1).fit(X_train, Y_train)#, solver='lbfgs', multi_class='multinomial').fit(X, y)
         #Y_pred_scikit = logReg.predict(X_test)
@@ -129,19 +133,25 @@ if __name__ == '__main__':
         print('''
               Logistic Regression Via Scikit Learn
               ''')
-        lambdas=np.logspace(-5,7,13)
-        parameters = [{'C': 1./lambdas, "solver":["lbfgs"]}]#*len(parameters)}]
-        scoring = ['accuracy', 'roc_auc']
-        logReg = LogisticRegression(n_jobs=-1, random_state=1)
+        #lambdas=np.logspace(-5,7,13)
+        #parameters = [{'C': 1./lambdas, "solver":["lbfgs"]}]#*len(parameters)}]
+        #scoring = ['accuracy', 'roc_auc']
+        #logReg = LogisticRegression(n_jobs=-1, random_state=1)
         # Looking for the best Hyper Parameters, and then applying Regression
-        gridSearch = GridSearchCV(logReg, parameters, cv=5, scoring=scoring, refit='roc_auc')
+        #gridSearch = GridSearchCV(logReg, parameters, cv=5, scoring=scoring, refit='roc_auc')
         
         # Fit with bst parameters
-        gridSearch.fit(X_train, Y_train.ravel())
+        #gridSearch.fit(X_train, Y_train.ravel())
         '''
-        neuralNet = neural.NeuralNetwork(NNType, NNArch, nLayers, nFeatures, nHidden, nOutput, epochs, alpha, lmbd, nInput)
+        m = np.size(Y_train)
+        neuralNet = neural.NeuralNetwork(NNType, NNArch, \
+                                         nLayers, nFeatures, \
+                                         nHidden, nOutput, \
+                                         epochs, alpha, \
+                                         lmbd, nInput, seed)
         modelParams, costs = neuralNet.TrainNetwork(X_train, Y_train, m)
         '''
+        
     elif (nLayers > 2):
         '''
         Switching to Neural Network
@@ -160,25 +170,25 @@ if __name__ == '__main__':
         print('''
               Initialising Keras
               ''')
-        classifier = Sequential()
+        #classifier = Sequential()
 
         # Random normal initializer generates tensors with a normal distribution.
         #First Hidden Layer
-        classifier.add(Dense(nHidden, activation=NNArch[1]['AF'], kernel_initializer='random_normal', input_dim=nFeatures))
+        #classifier.add(Dense(nHidden, activation=NNArch[1]['AF'], kernel_initializer='random_normal', input_dim=nFeatures))
         #Second  Hidden Layer
-        classifier.add(Dense(nHidden, activation=NNArch[1]['AF'], kernel_initializer='random_normal'))
+        #classifier.add(Dense(nHidden, activation=NNArch[1]['AF'], kernel_initializer='random_normal'))
         #Output Layer
-        classifier.add(Dense(nOutput, activation=NNArch[2]['AF'], kernel_initializer='random_normal'))
+        #classifier.add(Dense(nOutput, activation=NNArch[2]['AF'], kernel_initializer='random_normal'))
         #Compiling the neural network
         '''
         To optimize our neural network we use Adam. Adam stands for Adaptive 
         moment estimation. Adam is a combination of RMSProp + Momentum.
         '''
         # Stochatic gradient descent
-        sgd = SGD(lr=alpha)
-        classifier.compile(optimizer = sgd, loss='binary_crossentropy', metrics =['accuracy'])
+        #sgd = SGD(lr=alpha)
+        #classifier.compile(optimizer = sgd, loss='binary_crossentropy', metrics =['accuracy'])
         #Fitting the data to the training dataset
-        classifier.fit(X_train, Y_train, batch_size=10, epochs = epochs)
+        #classifier.fit(X_train, Y_train, batch_size=10, epochs = epochs)
         
         
         #def build_model(hidden_layer_sizes):
@@ -200,8 +210,8 @@ if __name__ == '__main__':
         #my_logger = MyLogger(n=50)
         #h = model.fit(train_x, train_y, batch_size=32, epochs=max_epochs, verbose=0, callbacks=[my_logger])
         
-        np.set_printoptions(precision=4, suppress=True)
-        eval_results = classifier.evaluate(X_test, Y_test, verbose=0) 
+        #np.set_printoptions(precision=4, suppress=True)
+        #eval_results = classifier.evaluate(X_test, Y_test, verbose=0) 
         #print("\nLoss, accuracy on test data: ")
         #print("%0.4f %0.2f%%" % (eval_results[0], eval_results[1]*100))
         

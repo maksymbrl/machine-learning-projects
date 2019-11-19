@@ -260,6 +260,61 @@ class NetworkArchitecture:
         '''
         display(data.sample(10))
         
+        '''
+        We will need to convert some data using OneHotEncoder. Specifically These are
+        "education", "sex", "marriage" and "pay_i" columns
+        '''
+
+        '''
+        Exploratory Data Analysis
+        '''
+        # The frequency of defaults
+        yes = data.default.sum()
+        no = len(data)-yes
+        
+        # Percentage
+        yes_perc = round(yes/len(data)*100, 1)
+        no_perc = round(no/len(data)*100, 1)
+        
+        plt.figure(figsize=(7,4))
+        sbn.set_context('notebook', font_scale=1.2)
+        sbn.countplot('default',data=data, palette="cool")
+        plt.annotate('Non-default: {}'.format(no), xy=(-0.3, 15000), xytext=(-0.3, 3000), size=12)
+        plt.annotate('Default: {}'.format(yes), xy=(0.7, 15000), xytext=(0.7, 3000), size=12)
+        plt.annotate(str(no_perc)+" %", xy=(-0.3, 15000), xytext=(-0.1, 8000), size=12)
+        plt.annotate(str(yes_perc)+" %", xy=(0.7, 15000), xytext=(0.9, 8000), size=12)
+        plt.title("CREDIT CARDS' DEFAULT COUNT", size=14)
+        #Removing the frame
+        plt.box(False);
+        
+        #set_option('display.width', 100)
+        #set_option('precision', 2)
+        
+        #print("SUMMARY STATISTICS OF NUMERIC COLUMNS")
+        #print()
+        #print(data.describe().T)
+        
+        # Creating a new dataframe with categorical variables
+        labels = ['sex', 'education', 'marriage', 'pay_1', 'pay_2',
+               'pay_3', 'pay_4', 'pay_5', 'pay_6', 'default']
+        subset = data[labels]
+        
+        #fig = plt.figure(figsize=(20, 15), facecolor='white')
+        #axes = [fig.add_subplot(3, 3, i) for i in range(1, len(labels))]
+        #for i in range(0, 3):
+        #    for j in range
+        #    axes[i] = sbn.countplot(x=label, hue="default", data=subset, palette="Blues", ax=axes[j, i])
+        
+        
+        fig, axes = plt.subplots(3,3, figsize=(20,15), sharey = 'all', facecolor='white')
+        #fig.text(0.04, 0.5, 'common Y', va='center', rotation='vertical')
+        axes = axes.flatten()
+        #object_bol = df.dtypes == 'object'
+        fig.suptitle('FREQUENCY OF CATEGORICAL VARIABLES (BY TARGET)')
+        for axe, catplot in zip(axes, labels):
+            #sbn.countplot(y=catplot, data=subset, ax=ax)#, order=np.unique(subset.values))
+            sbn.countplot(x=catplot, hue="default", data = subset, palette = "cool", ax=axe)
+        
         # passing data to further processing
         return data    
         
@@ -277,8 +332,12 @@ class NetworkArchitecture:
         #Y = Y[:, np.newaxis]
         X = data.loc[:, data.columns != "default"].values
         Y = data.loc[:, data.columns == "default"].values
-        print(np.shape(X))
-        # Categorical variables to one-hot's
+        #features = X
+        #stdX = (features - features.mean()) / (features.std())
+        #print(stdX)
+        # Categorical variables to one-hot's - getting dummy features
+        # I could do this in pandas or Keras, but I will go with this one
+        # because I can? :)
         onehotencoder = OneHotEncoder(sparse=False, categories="auto")
         X = ColumnTransformer([("", onehotencoder, [3]),], remainder="passthrough").fit_transform(X)
         #X = ColumnTransformer().fit_transform(X)
@@ -293,6 +352,7 @@ class NetworkArchitecture:
         rs = RobustScaler()
         X_train = ss.fit_transform( X_train )
         X_test = ss.transform( X_test )
+        #print(X_train)
         #print(X_train)
         #print(Y_train)
         # One-hot's of the target vector
@@ -613,7 +673,8 @@ class NeuralNetwork:
                 delta[str(l)] = A[str(l)] - Y
                 # gradients of output layer (+ regularization)
                 # W^{l} = A^{l-1} * delta^{l}
-                dJ['dW'+str(l)] = (1 / m) * np.matmul(A[str(l-1)].T, delta[str(l)]) #+ self.lambd * self.modelParams['W' + str(l)]
+                dJ['dW'+str(l)] = (1 / m) * np.matmul(A[str(l-1)].T, delta[str(l)]) \
+                + self.lambd * modelParams['W' + str(l)] / m
                 dJ['db'+str(l)] = (1 / m) * np.sum(delta[str(l)], axis=0, keepdims=True)
                 #print(dJ['dW'+str(l)].shape)
             else:
@@ -623,7 +684,8 @@ class NeuralNetwork:
                 delta[str(l)] = np.multiply(np.matmul(delta[str(l+1)], modelParams['W' + str(l+1)].T), dAF)
                 # gradients of the hidden layer
                 # W^{l} = A^{l-1} * delta^{l}
-                dJ['dW'+str(l)] = (1 / m) * np.matmul(A[str(l-1)].T, delta[str(l)]) #+ self.lambd * self.modelParams['W' + str(l)]
+                dJ['dW'+str(l)] = (1 / m) * np.matmul(A[str(l-1)].T, delta[str(l)]) \
+                + self.lambd * modelParams['W' + str(l)] / m
                 dJ['db'+str(l)] = (1 / m) * np.sum(delta[str(l)], axis=0, keepdims=True)
             #print(dJ['dW'+str(l)])
             #if np.isnan(delta[str(l)].columns.values):
@@ -659,7 +721,12 @@ class NeuralNetwork:
                 # Propagating Forward
                 A, Z = self.DoFeedForward(Xtrain, modelParams)
                 # Calculating cost Function
-                J = funclib.CostFuncs().CallNNLogistic(Ytrain, A[str(self.nLayers-1)], m)
+                J = funclib.CostFuncs().CallNNLogistic(Ytrain,\
+                                     A[str(self.nLayers-1)],\
+                                     modelParams,\
+                                     self.nLayers,\
+                                     m,\
+                                     self.lambd)
                 #print(J)
                 # Back propagation - gradients
                 dJ = self.DoBackPropagation(Ytrain, A, Z, modelParams, m)
@@ -672,6 +739,7 @@ class NeuralNetwork:
                 costs.append(J)
             # returning set of optimal model parameters
             return modelParams, costs
+        
         elif self.NNType == 'Regression':
             print('Regression has yet to be implemented')
             # returning set of optimal model parameters
