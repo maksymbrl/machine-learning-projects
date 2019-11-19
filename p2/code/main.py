@@ -34,6 +34,7 @@ from sklearn.metrics import confusion_matrix, f1_score
 from sklearn.model_selection import cross_val_score
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 
+
 import keras
 # stochastic gradient descent
 from keras.optimizers import SGD
@@ -88,7 +89,13 @@ if __name__ == '__main__':
     if not os.path.exists(outputPath):
         os.makedirs(outputPath)
     
-    
+    '''
+    So, If the total number of layers = 2, we can switch to Simple Logistic regression.
+    However, once the number of layers is > 2, we are going to use Neural Network.
+    The number of hidden layers can be specified in the parameter file above 
+    (this is done for simplicity). In principle, the Neural network without hidden layers,
+    should produc ethe same results as logistic regression (at least, i think so).
+    '''
     
     if (NNType == 'Classification'):
         NNType, NNArch, nLayers, nFeatures, \
@@ -100,18 +107,12 @@ if __name__ == '__main__':
         print('Regression')
         dataProc.ProcessData()
     
-    #print("onehotencoder", onehotencoder)
     
-    #print("nFeatures", nFeatures)
-    '''
-    So, If the total number of layers = 2, we can switch to Simple Logistic regression.
-    However, once the number of layers is > 2, we are going to use Neural Network.
-    The number of hidden layers can be specified in the parameter file above 
-    (this is done for simplicity). In principle, the Neural network without hidden layers,
-    should produc ethe same results as logistic regression (at least, i think so).
-    '''
+    
+
     if NNType == 'Regression':
         print('Linear Regression')
+        #RegressionPipeline.DoLinearRegression()
 
     elif NNType == 'Classification':
         if (nLayers == 2):
@@ -122,29 +123,31 @@ if __name__ == '__main__':
             print('''
                   Logistic Regression Via Manual Coding
                   ''')
-        
-            activeFuncs = funclib.ActivationFuncs()
-            costFuncs = funclib.CostFuncs()
-            theta = np.zeros((X_train.shape[1], 1))
-            epochs1 = range(epochs)
+            
+            costs = regression.RegressionPipeline().DoLogisticRegression(X_train, \
+                                                 Y_train_onehot, epochs, lmbd, alpha)
+            #activeFuncs = funclib.ActivationFuncs()
+            #costFuncs = funclib.CostFuncs()
+            #theta = np.zeros((X_train.shape[1], 1))
+            #epochs1 = range(epochs)
             #if BatchSize == 0:
-            m = len(Y_train)
-            costs = []
-            for epoch in epochs1:
-                Y_pred = np.dot(X_train, theta)
-                A = activeFuncs.CallSigmoid(Y_pred)#CallSigmoid(Y_pred)
-                # cost function        
-                J, dJ = costFuncs.CallLogistic(X_train, Y_train_onehot, A)
+            #m = len(Y_train)
+            #costs = []
+            #for epoch in epochs1:
+            #    Y_pred = np.dot(X_train, theta)
+            #    A = activeFuncs.CallSigmoid(Y_pred)#CallSigmoid(Y_pred)
+            #    # cost function        
+            #    J, dJ = costFuncs.CallLogistic(X_train, Y_train_onehot, A)
                 # Adding regularisation
-                J = J + lmbd / (2*m) * np.sum(theta**2)
-                dJ = dJ + lmbd * theta / m
+           #     J = J + lmbd / (2*m) * np.sum(theta**2)
+           #     dJ = dJ + lmbd * theta / m
                 # updating weights
-                theta = theta - alpha * dJ #+ lmbd * theta/m
+             #   theta = theta - alpha * dJ #+ lmbd * theta/m
                 # updating cost func history
-                costs.append(J)
+             #   costs.append(J)
                 # getting values of cost function at each epoch
-                if(epoch % 100 == 0):
-                    print('Cost after iteration# {:d}: {:f}'.format(epoch, J))
+             #   if(epoch % 100 == 0):
+             #       print('Cost after iteration# {:d}: {:f}'.format(epoch, J))
             
             # Using Logistic regression
             #logReg = LogisticRegression(n_jobs=-1, random_state=1).fit(X_train, Y_train)#, solver='lbfgs', multi_class='multinomial').fit(X, y)

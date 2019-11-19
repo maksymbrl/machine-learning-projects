@@ -31,6 +31,23 @@ from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
 
+# Scikitlearn imports to check results
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.metrics import confusion_matrix, accuracy_score, roc_auc_score, classification_report, f1_score
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
+from numpy import argmax
+
+# We'll need some metrics to evaluate our models
+from sklearn.neural_network import MLPClassifier, MLPRegressor
+
+
+import keras
+# stochastic gradient descent
+from keras.optimizers import SGD
+from keras.models import Sequential
+from keras.layers import Dense
+
 import funclib
 import data_processing
 
@@ -115,4 +132,39 @@ class RegressionPipeline:
         #=====================================================================#
         # Logistic Regression variables
         #=====================================================================#
-        pass
+        X_train = args[0]
+        Y_train_onehot = args[1]
+        epochs   = args[2]
+        lmbd = args[3]
+        alpha = args[4]
+        '''
+        Part 1: Implementing Logistic Regression via gradient Descent. 
+        Batch gradient descent and usual GD are implemented for Part 2:
+        NN Logistic Regression.
+        '''
+        activeFuncs = funclib.ActivationFuncs()
+        costFuncs = funclib.CostFuncs()
+        theta = np.zeros((X_train.shape[1], 1))
+        epochs1 = range(epochs)
+        #if BatchSize == 0:
+        m = len(Y_train_onehot)
+        costs = []
+        for epoch in epochs1:
+            Y_pred = np.dot(X_train, theta)
+            A = activeFuncs.CallSigmoid(Y_pred)#CallSigmoid(Y_pred)
+            # cost function        
+            J, dJ = costFuncs.CallLogistic(X_train, Y_train_onehot, A)
+            # Adding regularisation
+            J = J + lmbd / (2*m) * np.sum(theta**2)
+            dJ = dJ + lmbd * theta / m
+            # updating weights
+            theta = theta - alpha * dJ #+ lmbd * theta/m
+            # updating cost func history
+            costs.append(J)
+            # getting values of cost function at each epoch
+            if(epoch % 100 == 0):
+                print('Cost after iteration# {:d}: {:f}'.format(epoch, J))
+                      
+        #print("Old accuracy on training data: " + str(accuracy_score(predict(X_train), Y_train_onehot)))
+        
+        return costs

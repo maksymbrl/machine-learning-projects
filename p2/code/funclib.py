@@ -241,10 +241,10 @@ class ErrorFuncs:
         return 1 - np.sum((z_data - z_model)**2) / np.sum((z_data - np.mean(z_data))**2)
     
     # I will be using scikit functionalities
-    # To estimate errors etc.
+    # To estimate errors etc. Why? Because I can :)
     # Accuracy
-    #def CallAccuracy(self, *args):
-    #    return
+    #def accuracy_score_numpy(Y_test, Y_pred):
+    #    return np.sum(Y_test == Y_pred) / len(Y_test)
     
 '''
 Class which holds all Normal equations, 
@@ -360,6 +360,12 @@ class DataFuncs:
         term4 = -0.2 * np.exp(-(9 * x - 4) ** 2 - (9 * y - 7) ** 2)
         return term1 + term2 + term3 + term4
     
+    # Beale's function
+    def CallBeale(self, *args):
+        x = args[0] 
+        y = args[1]
+        return (1.5 - x + x*y)**2 + (2.25 - x + x*y**2)**2 + (2.625 - x + x*y**3)**2
+    
 '''
 Class which contains ll plotting functions
 '''
@@ -379,6 +385,7 @@ class PlotFuncs:
         output_dir = args[3]
         # filename
         filename = args[4]
+        print(filename)
         # Turning interactive mode on
         #plt.ion()
         fig = plt.figure(figsize=(10, 3))
