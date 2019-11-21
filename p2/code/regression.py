@@ -156,15 +156,34 @@ class RegressionPipeline:
             J, dJ = costFuncs.CallLogistic(X_train, Y_train_onehot, A)
             # Adding regularisation
             J = J + lmbd / (2*m) * np.sum(theta**2)
+            if np.isnan(J):
+                print("J is ", J)
             dJ = dJ + lmbd * theta / m
             # updating weights
             theta = theta - alpha * dJ #+ lmbd * theta/m
             # updating cost func history
             costs.append(J)
             # getting values of cost function at each epoch
-            if(epoch % 100 == 0):
-                print('Cost after iteration# {:d}: {:f}'.format(epoch, J))
+            #if(epoch % 100 == 0):
+            #    print('Cost after iteration# {:d}: {:f}'.format(epoch, J))
                       
         #print("Old accuracy on training data: " + str(accuracy_score(predict(X_train), Y_train_onehot)))
         
-        return costs
+        return costs, theta
+    
+    def PredictLogisticRegression(self,  *args):
+        X = args[0]
+        theta = args[1]
+        #def predict(self,X,betas=[]):                           # Calculates probabilities and onehots for y
+        #if (len(betas)>0):
+        #    beta=betas.copy()
+        #else:
+        #    beta=self.beta.copy()
+        #print("Predicting y using logreg")
+        # Returns probabilities
+        activeFuncs = funclib.ActivationFuncs()
+        A = activeFuncs.CallSigmoid(X @ theta)
+        #print('A is ', A)
+        Y_pred = (A > 0.5).astype(int)
+        #Y_pred_onehot = self.initdata.onehotencoder.fit_transform(Y_pred.reshape(-1,1)) # Converts to onehot
+        return Y_pred

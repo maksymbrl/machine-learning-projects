@@ -13,41 +13,49 @@ RandomSeed:     1
 nHiddenLayers:  0 # type 0 to run Logistic Regression
 # Activation functions for hidden and output layers
 # (['sigmoid', 'tanh', 'relu', 'softmax'])
-hiddenFunc:     'sigmoid' #'sigmoid'
-outputFunc:     'softmax'
+hiddenFunc:     'tanh' #'sigmoid'
+outputFunc:     'softmax' #'identity' #'softmax'
+# Size of the test sample
+testSize:       0.2
 # Number of Neurons for hidden and output layers
-nHiddenNeurons: 50
+nHiddenNeurons: 2  # 30
 nOutputNeurons: 2 # for binary classification tasks it is 1 or 2
 # Epochs to train the algorithm
-epochs:         1
+epochs:         100 #200 #170
 # Optimization Algorithm: choose it wisely :)
-Optimization:   'GD' #['GD', 'MBGD', 'All']
+Optimization:   'GD' #['GD', 'MBGD', 'All'] <= haven't implemented this feature yet
 # Batch size for Gradient Descent => if 0, will use simple gradient descent
-BatchSize:      100 #10000
+BatchSize:      0 #10000
 # Learning rate
-alpha:          0.1 #np.logspace(-5, 1, 7)
+alpha:          0.1 # 0.01 #0.0001 #np.logspace(-5, 1, 7)
 # Regularisation
-lambda:         0.0001 # np.logspace(-5, 1, 7) # if 0 then no regularisation used
+lambda:         0.0000001 # np.logspace(-5, 1, 7) # if 0 then no regularisation used
+# The range of alphas to apply grid search
+alphas:         [-5, 1, 7] # np.logspace(-5, 1, 7)
+lambdas:        [-5, 1, 7]
 #=============================================================================#
 # I am going to use Franke function, that is why this part of the parameters 
 # configuring the franke data. In theory it it possible to use variable dataPath 
 # and work with the real data set but again some cleaning and data processing 
-# would be required in that step. I think this can be ommit for Franke data, 
-# because we know more or less its shape :)
+# would be required in that step. I think this can be ommitted for Franke data, 
+# because we know more or less its shape and also because it is alredy normalized 
+# (in a sense) :)
 #
 # Please, bear in mind that, you still need to specify the type of analysis
 # and also all other necessary parameters.
-function:       'Franke'
+function:       'Franke' # <= in current version doesn't affect anything
 # number of independent variables
 nVars:          2
 # polynomial degree to approximate
 degree:         5
 # number of grid points (e.g. if 100, we get grid 100x100)
-nPoints:        100
+nPoints:        80 # 100 #<= overfitting?
 # noise level, aka sigma/psilon/whatever
-noise:          0.1
+noise:          0.01
 # number of processors to use - useless parameter
-nProc:          'mp.cpu_count()-1'
+nProc:          10
+# Decide whether we want to get best parameters for our model
 
 
 
+# Use very small lamdba for Linear regression, like 0.000001

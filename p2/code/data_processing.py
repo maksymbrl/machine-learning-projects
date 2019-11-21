@@ -28,7 +28,7 @@ import collections
 # For Data preprocessing
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder, StandardScaler, RobustScaler
-from sklearn.compose import ColumnTransformer
+from sklearn.compose import ColumnTransformer, make_column_transformer
 
 # One Hot Encoder from Keras
 from keras.utils import to_categorical
@@ -242,23 +242,6 @@ class NetworkArchitecture:
             '''
             # Making dummy features (i.e. changing stuff to either 0 or 1)
             # for this we need to add additional columns
-            '''
-    
-            '''
-            # e.g. if the person was in grad school, we will get 1, 0 otherwise (etc.)
-            #data['grad_school']  = (data['education']==1).astype('int')
-            #data.insert((data['education']==1).astype('int'), data.columns[2], 'grad_school')
-            #data['university']   = (data['education']==2).astype('int')
-            #data['high_school']  = (data['education']==3).astype('int')
-            #data['others']       = (data['education']==4).astype('int')
-            #data.drop('education', axis=1, inplace=True)
-            
-            # repeating the same for sex 
-            #data['male'] = (data['sex']==1).astype('int')
-            #data.drop('sex', axis=1, inplace=True)
-            # dumping all singles and others in one category
-            #data['married'] = (data['marriage']==2).astype('int')
-            #data.drop('marriage', axis=1, inplace=True)
             
             # I assume that everything which is less than 0
             # is paid on time
@@ -322,6 +305,26 @@ class NetworkArchitecture:
             for axe, catplot in zip(axes, labels):
                 #sbn.countplot(y=catplot, data=subset, ax=ax)#, order=np.unique(subset.values))
                 sbn.countplot(x=catplot, hue="default", data = subset, palette = "cool", ax=axe)
+            '''
+            Creating dummy features with pandas
+            '''
+            # e.g. if the person was in grad school, we will get 1, 0 otherwise (etc.)
+            data['grad_school']  = (data['education']==1).astype('int')
+            #data.insert((data['education']==1).astype('int'), data.columns[2], 'grad_school')
+            data['university']   = (data['education']==2).astype('int')
+            data['high_school']  = (data['education']==3).astype('int')
+            data['others']       = (data['education']==4).astype('int')
+            data.drop('education', axis=1, inplace=True)
+            
+            # repeating the same for sex 
+            data['male'] = (data['sex']==1).astype('int')
+            data.drop('sex', axis=1, inplace=True)
+            # dumping all singles and others in one category
+            data['married'] = (data['marriage']==2).astype('int')
+            data.drop('marriage', axis=1, inplace=True)
+            print(data.head(10))
+            
+            
         elif (NNType == 'Regression'):
             ''' Generating Data Set '''
             n_vars = self.paramData['nVars']
@@ -332,13 +335,26 @@ class NetworkArchitecture:
             x_symb = sp.symarray('x', n_vars, real = True)
             # making a copy of this array
             x_vals = x_symb.copy()
-            # and fill it with values
-            for i in range(n_vars):
-                x_vals[i] = np.arange(0, 1, 1./N_points)#np.sort(np.random.uniform(0, 1, N_points))
+                
+            '''
+            x = np.linspace(0, 1, N)
+            y = np.linspace(0, 1, N)
+            x_, y_ = np.meshgrid(x,y)
+    
+            data = np.c_[(x_.ravel()).T,(y_.ravel()).T]
+            data = pd.DataFrame(data)
+    
+            # Create and transform franke function data
+            b = self.FrankeFunction(x_, y_) + np.random.normal(size=x_.shape)*noise # Franke function with optional gaussian noise
+            y = b.ravel()
+            '''
             # library object instantiation
             #lib = regression.RegressionPipeline(x_symb, x_vals)
             dataFunc = self.paramData['function']
             if dataFunc == 'Franke':
+                # and fill it with values
+                for i in range(n_vars):
+                    x_vals[i] = np.arange(0, 1, 1./N_points)#np.sort(np.random.uniform(0, 1, N_points))
                 # setting up the grid
                 x, y = np.meshgrid(x_vals[0], x_vals[1])
                 # and getting output based on the Franke Function
@@ -352,7 +368,8 @@ class NetworkArchitecture:
     Working on Data
     '''
     def ProcessData(self, *args):
-        # getting data
+        testSize =self.paramData['testSize']
+       # getting data
         data = self.PrepareData()
         outputPath = self.paramData['outputPath']
         NNType = self.paramData['type']
@@ -366,7 +383,7 @@ class NetworkArchitecture:
             #Y = Y[:, np.newaxis]
             X = data.loc[:, data.columns != "default"].values
             Y = data.loc[:, data.columns == "default"].values
-            print(np.shape(Y))
+            #print(np.shape(Y))
             #features = X
             #stdX = (features - features.mean()) / (features.std())
             #print(stdX)
@@ -380,18 +397,31 @@ class NetworkArchitecture:
             #rs = RobustScaler()
             #X = rs.fit_transform(X)
             # Splitting our data into training and test sets
-            X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size = 0.2, random_state = 1)
+            X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size = testSize, random_state = 1)
             # Scaling the dataset (we do not scale Y, because it has values either 0 or 1)
             # Scale to zero mean and unit variance
             ss = StandardScaler()
             rs = RobustScaler()
             X_train = ss.fit_transform( X_train )
             X_test = ss.transform( X_test )
+            #print(X_train)
             # One-hot's of the target vector
-            Y_train_onehot = to_categorical(Y_train)#onehotencoder.fit_transform(Y_train.reshape(len(Y_train), -1))
-            Y_test_onehot =  to_categorical(Y_test)#onehotencoder.fit(Y_test.reshape(len(Y_test), -1))
+            #enc = OneHotEncoder()
+            # 0 -> (1, 0, 0, 0), 1 -> (0, 1, 0, 0), 2 -> (0, 0, 1, 0), 3 -> (0, 0, 0, 1)
+            #y_OH_train = enc.fit_transform(np.expand_dims(Y_train,1)).toarray()
+            #y_OH_val = enc.fit_transform(np.expand_dims(Y_val,1)).toarray()
+            #Y_train_onehot = to_categorical(Y_train)#onehotencoder.fit_transform(Y_train)#.reshape(len(Y_train), -1))
+            #Y_test_onehot =  to_categorical(Y_test)#onehotencoder.fit(Y_test)#.reshape(len(Y_test), -1))
+            Y_onehot = onehotencoder.fit_transform(Y)
+            Y_train_onehot = onehotencoder.fit_transform(Y_train)#.reshape(len(Y_train), -1))
+            Y_test_onehot =  onehotencoder.fit_transform(Y_test)#.reshape(len(Y_test), -1))
             
-            print("Y_train shape", np.shape(Y_train))
+            print("Y_train_onehot is \n", np.shape(Y_train_onehot))
+            print("Y_test_onehot  is \n", np.shape(Y_test_onehot))
+   
+            #to_categorical(Y_train)#
+            #to_categorical(Y_test)#
+            print("Y_train shape", np.shape(Y_onehot))
             
             '''
             Now we encode the string values in the features 
@@ -410,11 +440,24 @@ class NetworkArchitecture:
             #theta = np.zeros((X.shape[1], 1))
             # No. of training examples
             '''
-            m = X_train.shape[1]
+            #m = X_train.shape[1]
             
-            return X_train, X_test, Y_train, Y_test, Y_train_onehot, Y_test_onehot, m, onehotencoder#Y_train, Y_test, m
+            return X, Y, X_train, X_test, Y_train, Y_test, Y_onehot, Y_train_onehot, Y_test_onehot, onehotencoder#Y_train, Y_test, m
         
         elif (NNType == 'Regression'):
+            '''
+            x = np.linspace(0, 1, N)
+            y = np.linspace(0, 1, N)
+            x_, y_ = np.meshgrid(x,y)
+    
+            data = np.c_[(x_.ravel()).T,(y_.ravel()).T]
+            data = pd.DataFrame(data)
+    
+            # Create and transform franke function data
+            b = self.FrankeFunction(x_, y_) + np.random.normal(size=x_.shape)*noise # Franke function with optional gaussian noise
+            y = b.ravel()
+            '''
+            
             x_symb, x_vals, x, y, z = data
             n_vars = self.paramData['nVars']
             N_points = self.paramData['nPoints']
@@ -444,7 +487,10 @@ class NetworkArchitecture:
             regression.RegressionPipeline().DoLinearRegression(X, x, y, z, x_rav, \
                                          y_rav, z_rav, zshape, \
                                          poly_degree, lambda_par, sigma, outputPath)
-            
+            Y = z_rav
+            #print(Y.shape)
+            X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size = testSize, random_state = 1)
+            #m = X_train.shape[1]
             #''' MANUAL '''
             #ztilde_ridge, beta_ridge, beta_min, beta_max = lib.doRidgeRegression(X, z_rav, self.lambda_par, self.confidence, self.sigma)
             #ztilde_ridge = ztilde_ridge.reshape(zshape)
@@ -466,7 +512,7 @@ class NetworkArchitecture:
             #ztilde_lin, beta_lin, beta_min, beta_max = lib.doLinearRegression(X, z_rav, self.confidence, self.sigma)
             #ztilde_lin = ztilde_lin.reshape(zshape)
             
-            return
+            return X, Y, X_train, X_test, Y_train, Y_test, x, y, z, x_rav, y_rav, z_rav, zshape
         
     '''
     Configuring Neural Network:
@@ -480,7 +526,7 @@ class NetworkArchitecture:
         if (NNType == 'Classification'):
             # Getting processed data <= it will not be changed in this stage
             # I am using to just identify some key features of the NN
-            X_train, X_test, Y_train, Y_test, Y_train_onehot, Y_test_onehot, m, onehotencoder = self.ProcessData()
+            X, Y, X_train, X_test, Y_train, Y_test, Y_onehot, Y_train_onehot, Y_test_onehot, onehotencoder = self.ProcessData()
     
             # Layer Architecture
             NNArch = []
@@ -529,7 +575,60 @@ class NetworkArchitecture:
             
             return NNType, NNArch, nLayers, \
                    nFeatures, nHidden, nOutput, \
-                   epochs, alpha, lmbd, X_train, \
-                   X_test, Y_train, Y_test, Y_train_onehot, Y_test_onehot, m,\
+                   epochs, alpha, lmbd, X, Y, X_train, \
+                   X_test, Y_train, Y_test, Y_onehot, Y_train_onehot, Y_test_onehot,\
                    nInput, seed, onehotencoder, BatchSize, Optimization
-                   
+        elif (NNType == 'Regression'):
+            X, Y, X_train, X_test, Y_train, Y_test,  x, y, z, x_rav, y_rav, z_rav, zshape = self.ProcessData()
+            
+            # Layer Architecture
+            NNArch = []
+            # Total Number of layers, should be 2 or more
+            # (2 for logistic regression)
+            nLayers = self.paramData['nHiddenLayers'] + 2 #3
+            # Number of Input Neurons (Input Data)
+            nInput = X_train.shape[0] # <= the amount of data points per variable
+            print("nInput", nInput)
+            nFeatures = X_train.shape[1] # <= the amount of variables
+            print('nFeatures', nFeatures)
+            #self.n_inputs           = Xtrain.shape[0]   # Number of input data
+            #self.n_features         = Xtrain.shape[1]   # Number of features
+            # Number of Hidden Neurons
+            nHidden = self.paramData['nHiddenNeurons']#len(X)
+            # Number of Output Neurons
+            nOutput = self.paramData['nOutputNeurons']#len(Y)
+            # activation functions
+            aHiddenFunc = self.paramData['hiddenFunc']
+            aOutputFunc = self.paramData['outputFunc']
+            #aFuncs = ['sigmoid', 'relu', 'tanh', 'step']
+            # Creating NN architecture
+            for l in range(0, nLayers):
+                # input layer
+                if l == 0:
+                    NNArch.append({"LSize": nFeatures, "AF": "none"})
+                # output layer
+                elif l == (nLayers-1):
+                    NNArch.append({"LSize": nOutput, "AF": aOutputFunc})
+                # hidden layers
+                else:
+                    NNArch.append({"LSize": nHidden, "AF": aHiddenFunc})
+            # epochs to train the algorithm
+            epochs = self.paramData['epochs']#1000
+            # learning rate
+            alpha = self.paramData['alpha'] #0.3
+            # regularization parameter
+            lmbd = self.paramData['lambda'] #0.001
+            # Seed
+            seed = self.paramData['RandomSeed']
+            # Optimization Algorithm
+            Optimization = self.paramData['Optimization']
+            # Batch Size
+            BatchSize = self.paramData['BatchSize']
+            
+            return NNType, NNArch, nLayers, \
+                   nFeatures, nHidden, nOutput, \
+                   epochs, alpha, lmbd, X, Y, X_train, \
+                   X_test, Y_train, Y_test,\
+                   x, y, z,\
+                   x_rav, y_rav, z_rav, zshape,\
+                   nInput, seed, BatchSize, Optimization
