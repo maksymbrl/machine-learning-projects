@@ -30,6 +30,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder, StandardScaler, RobustScaler
 from sklearn.compose import ColumnTransformer, make_column_transformer
 
+from sklearn.preprocessing import StandardScaler, OneHotEncoder, PolynomialFeatures
+
 # One Hot Encoder from Keras
 from keras.utils import to_categorical
 
@@ -114,11 +116,18 @@ class NetworkArchitecture:
             which features will affect default the most
             '''
             corr = data.corr()#data.drop('ID', axis = 1).corr()
-            f, ax = plt.subplots(figsize=(15, 15))
+            fig, ax = plt.subplots(figsize=(22, 22))
             # Generate a custom diverging colormap
             cmap = sbn.diverging_palette(220, 10, as_cmap=True)
             # Draw the heatmap with the mask and correct aspect ratio
             sbn.heatmap(corr, cmap = cmap, vmin=0,vmax=1, center=0, square=True, annot=True, linewidths=.5)
+            #plt.legend(loc='upper right', bbox_to_anchor=(1.0, 1.00), borderaxespad=0.)
+            #plt.ylabel("Costs")
+            #plt.xlabel("epochs")
+            #plt.show()
+            # saving cost functions
+            filename = outputPath + '/'+ 'linreg_correlation_matrix.png'
+            fig.savefig(filename)
             '''
             Looking for the most dense regions, it is obvious
             that we are interested in columns: 
@@ -275,7 +284,7 @@ class NetworkArchitecture:
             yes_perc = round(yes/len(data)*100, 1)
             no_perc = round(no/len(data)*100, 1)
             
-            plt.figure(figsize=(7,4))
+            fig = plt.figure(figsize=(10, 5))
             sbn.set_context('notebook', font_scale=1.2)
             sbn.countplot('default',data=data, palette="cool")
             plt.annotate('Non-default: {}'.format(no), xy=(-0.3, 15000), xytext=(-0.3, 3000), size=12)
@@ -285,6 +294,8 @@ class NetworkArchitecture:
             plt.title("CREDIT CARDS' DEFAULT COUNT", size=14)
             #Removing the frame
             plt.box(False);
+            filename = outputPath + '/'+ 'linreg_default_count.png'
+            fig.savefig(filename)
             
             #set_option('display.width', 100)
             #set_option('precision', 2)
@@ -305,6 +316,9 @@ class NetworkArchitecture:
             for axe, catplot in zip(axes, labels):
                 #sbn.countplot(y=catplot, data=subset, ax=ax)#, order=np.unique(subset.values))
                 sbn.countplot(x=catplot, hue="default", data = subset, palette = "cool", ax=axe)
+                axe.legend(loc='upper right', bbox_to_anchor=(1.0, 1.00),title='default')
+            filename = outputPath + '/'+ 'linreg_variable_frequency.png'
+            fig.savefig(filename)
             '''
             Creating dummy features with pandas
             '''
@@ -351,15 +365,21 @@ class NetworkArchitecture:
             # library object instantiation
             #lib = regression.RegressionPipeline(x_symb, x_vals)
             dataFunc = self.paramData['function']
+            # and fill it with values
+            for i in range(n_vars):
+                x_vals[i] = np.arange(0, 1, 1./N_points)#np.linspace(0, 1, N_points)#np.sort(np.random.uniform(0, 1, N_points))
+            # setting up the grid
+            x, y = np.meshgrid(x_vals[0], x_vals[1])
+            # getting the function
             if dataFunc == 'Franke':
-                # and fill it with values
-                for i in range(n_vars):
-                    x_vals[i] = np.arange(0, 1, 1./N_points)#np.sort(np.random.uniform(0, 1, N_points))
-                # setting up the grid
-                x, y = np.meshgrid(x_vals[0], x_vals[1])
-                # and getting output based on the Franke Function
+                # and getting output based on the whatever function we have chosen)
                 z = funclib.DataFuncs().CallFranke(x, y) + sigma * np.random.randn(N_points, N_points)
-                data = (x_symb, x_vals, x, y, z)
+            elif dataFunc == 'Beale':
+                z = funclib.DataFuncs().CallBeale(x, y) + sigma * np.random.randn(N_points, N_points)
+            elif dataFunc == 'Paraboloid':
+                z = funclib.DataFuncs().CallParaboloid(x, y) + sigma * np.random.randn(N_points, N_points)
+                
+            data = (x_symb, x_vals, x, y, z)
             
         # passing data to further processing
         return data    
@@ -416,12 +436,12 @@ class NetworkArchitecture:
             Y_train_onehot = onehotencoder.fit_transform(Y_train)#.reshape(len(Y_train), -1))
             Y_test_onehot =  onehotencoder.fit_transform(Y_test)#.reshape(len(Y_test), -1))
             
-            print("Y_train_onehot is \n", np.shape(Y_train_onehot))
-            print("Y_test_onehot  is \n", np.shape(Y_test_onehot))
+            #print("Y_train_onehot is \n", np.shape(Y_train_onehot))
+            #print("Y_test_onehot  is \n", np.shape(Y_test_onehot))
    
             #to_categorical(Y_train)#
             #to_categorical(Y_test)#
-            print("Y_train shape", np.shape(Y_onehot))
+            #print("Y_train shape", np.shape(Y_onehot))
             
             '''
             Now we encode the string values in the features 
@@ -483,6 +503,18 @@ class NetworkArchitecture:
             func = funclib.NormalFuncs()
             # getting the design matrix
             X = func.ConstructDesignMatrix(x_symb, x_vals, poly_degree)
+            
+            #data = np.c_[(x.ravel()).T,(y.ravel()).T]
+            #data = pd.DataFrame(data)
+    
+            # Create and transform franke function data
+            #b = self.FrankeFunction(x_, y_) + np.random.normal(size=x_.shape)*noise # Franke function with optional gaussian noise
+            #y = b.ravel()
+    
+            # Create design matrix with polynomial features
+            #poly = PolynomialFeatures(degree=poly_degree) 
+            #X = poly.fit_transform(data) 
+            
             # Dump everything into Regression Pipeline
             regression.RegressionPipeline().DoLinearRegression(X, x, y, z, x_rav, \
                                          y_rav, z_rav, zshape, \
@@ -535,9 +567,9 @@ class NetworkArchitecture:
             nLayers = self.paramData['nHiddenLayers'] + 2 #3
             # Number of Input Neurons (Input Data)
             nInput = X_train.shape[0] # <= the amount of data points per variable
-            print("nInput", nInput)
+            #print("nInput", nInput)
             nFeatures = X_train.shape[1] # <= the amount of variables
-            print('nFeatures', nFeatures)
+            #print('nFeatures', nFeatures)
             #self.n_inputs           = Xtrain.shape[0]   # Number of input data
             #self.n_features         = Xtrain.shape[1]   # Number of features
             # Number of Hidden Neurons
@@ -579,7 +611,7 @@ class NetworkArchitecture:
                    X_test, Y_train, Y_test, Y_onehot, Y_train_onehot, Y_test_onehot,\
                    nInput, seed, onehotencoder, BatchSize, Optimization
         elif (NNType == 'Regression'):
-            X, Y, X_train, X_test, Y_train, Y_test,  x, y, z, x_rav, y_rav, z_rav, zshape = self.ProcessData()
+            X, Y, X_train, X_test, Y_train, Y_test, x, y, z, x_rav, y_rav, z_rav, zshape = self.ProcessData()
             
             # Layer Architecture
             NNArch = []
@@ -588,9 +620,9 @@ class NetworkArchitecture:
             nLayers = self.paramData['nHiddenLayers'] + 2 #3
             # Number of Input Neurons (Input Data)
             nInput = X_train.shape[0] # <= the amount of data points per variable
-            print("nInput", nInput)
+            #print("nInput", nInput)
             nFeatures = X_train.shape[1] # <= the amount of variables
-            print('nFeatures', nFeatures)
+            #print('nFeatures', nFeatures)
             #self.n_inputs           = Xtrain.shape[0]   # Number of input data
             #self.n_features         = Xtrain.shape[1]   # Number of features
             # Number of Hidden Neurons

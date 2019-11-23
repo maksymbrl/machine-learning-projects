@@ -24,15 +24,19 @@ import time
 
 import collections
 from collections import Counter
+# for nice progress bar
+from tqdm import tqdm_notebook
 
 # For Data preprocessing
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder, StandardScaler, RobustScaler
 from sklearn.compose import ColumnTransformer
 
+from sklearn.metrics import accuracy_score, mean_squared_error, log_loss
+
 # One Hot Encoder from Keras
 from keras.utils import to_categorical
-
+import tensorflow as tf
 # initialising pretty printing with sympy 
 # for Latex characters and more
 from IPython.display import display, Latex, Markdown
@@ -114,13 +118,6 @@ class NeuralNetwork:
                                  self.alpha,
                                  self.lambd)))
     
-    #(5624, 31)
-    #(5624, 2)
-    #(22497, 31)
-    #(22497, 2)
-    # 
-    
-    
     '''
     To address these issues, Xavier and Bengio (2010) proposed the 
     “Xavier” initialization which considers the size of the network 
@@ -142,7 +139,8 @@ class NeuralNetwork:
     def CallXavier(self, *args):
         n_l = args[0]
         n_next = args[1]
-        xav = np.random.uniform(-np.sqrt(6.0 / (n_l + n_next)), np.sqrt(6.0 / (n_l + n_next)), size=(n_l, n_next))# * np.sqrt(6.0 / (n_l + n_next))
+        #xav = np.random.uniform(-1, 1, size=(n_l, n_next)) * np.sqrt(6.0 / (n_l + n_next))
+        xav = np.random.randn(n_l, n_next)*np.sqrt(2/(n_l+n_next))
         return xav
     
     '''
@@ -154,56 +152,47 @@ class NeuralNetwork:
         kaim = np.random.rand(m, h) * np.sqrt(2./m)
         return kaim#torch.randn()
     
+    '''
+    Initialising weights' for training. I am using Xavier and He 
+    (here I call it Kaiming from Kaiming He <= you got the idea :),
+    but, for some reason, it doesn't help much for Linear Regression,
+    so later I am trying to do batch Normalisation.
+    '''
     def InitParams(self, *args):
         NNArch = args[0]
         nInput = args[1]
         # biases and weights for hidden and output layers
         # dictionary to contain all parameters for each layer
         # (i.e. "W1", "b1", ..., "WL", "bL", except inpur one)
-        modelParams = {}
-        for l in range(1, self.nLayers):
-            print(self.NNArch[l]["LSize"])
-            if self.NNArch[l]['AF'] == 'sigmoid':
-                modelParams['W' + str(l)] = self.CallXavier(self.NNArch[l-1]["LSize"],self.NNArch[l]["LSize"])
-                modelParams['b' + str(l)] = np.random.randn(NNArch[l]["LSize"])
-            elif self.NNArch[l]['AF'] == 'tanh':
-                modelParams['W' + str(l)] = self.CallXavier(self.NNArch[l-1]["LSize"],self.NNArch[l]["LSize"])
-                modelParams['b' + str(l)] = np.random.randn(NNArch[l]["LSize"])
-            elif self.NNArch[l]['AF'] == 'softmax':
-                modelParams['W' + str(l)] = self.CallXavier(self.NNArch[l-1]["LSize"],self.NNArch[l]["LSize"])
-                modelParams['b' + str(l)] = np.random.randn(NNArch[l]["LSize"])
-            elif self.NNArch[l]['AF'] == 'relu':
-                modelParams['W' + str(l)] = self.CallKaiming(self.NNArch[l-1]["LSize"],self.NNArch[l]["LSize"])
-                modelParams['b' + str(l)] = np.random.randn(NNArch[l]["LSize"])
-            elif self.NNArch[l]['AF'] == 'elu':
-                modelParams['W' + str(l)] = self.CallKaiming(self.NNArch[l-1]["LSize"],self.NNArch[l]["LSize"])
-                modelParams['b' + str(l)] = np.random.randn(NNArch[l]["LSize"])
-            else:
-                modelParams['W' + str(l)] = self.CallXavier(self.NNArch[l-1]["LSize"],self.NNArch[l]["LSize"])
-                modelParams['b' + str(l)] = np.random.randn(NNArch[l]["LSize"])
-            # weights for each layer (except input one)
-            #print(self.nInputNeurons, self.nHiddenNeurons)
-            #print(self.NNArch[l-1]["LSize"])
-            #modelParams['W' + str(l)] = np.random.randn(NNArch[l-1]["LSize"], NNArch[l]["LSize"]) #*\
+        self.modelParams = {}
+        self.update_params={}
 
-            #self.CallXavier(NNArch[l-1]["LSize"], NNArch[l]["LSize"])#/ np.sqrt(NNArch[l-1]["LSize"])
-            #modelParams['W' + str(l)] = np.random.randn(NNArch[l-1]["LSize"], NNArch[l]["LSize"]) *\
-            #self.CallXavier(NNArch[l-1]["LSize"], NNArch[l]["LSize"])
-            #print(np.shape(modelParams['W' + str(l)]))
-            # biases for each layer (except input one)
-            #modelParams['b' + str(l)] = np.zeros((self.NNArch[l]["LSize"], self.nOutputNeurons)) + 0.01
+        for l in range(1, self.nLayers):
+            #print(self.NNArch[l]["LSize"])
+            if self.NNArch[l]['AF'] == 'sigmoid':
+                self.modelParams['W' + str(l)] = self.CallXavier(self.NNArch[l-1]["LSize"],self.NNArch[l]["LSize"])
+                self.modelParams['b' + str(l)] = np.random.randn(NNArch[l]["LSize"]) #+ 1
+            elif self.NNArch[l]['AF'] == 'tanh':
+                self.modelParams['W' + str(l)] = self.CallXavier(self.NNArch[l-1]["LSize"],self.NNArch[l]["LSize"])
+                self.modelParams['b' + str(l)] = np.random.randn(NNArch[l]["LSize"]) #+ 1
+            elif self.NNArch[l]['AF'] == 'softmax':
+                self.modelParams['W' + str(l)] = self.CallXavier(self.NNArch[l-1]["LSize"],self.NNArch[l]["LSize"])
+                self.modelParams['b' + str(l)] = np.random.randn(NNArch[l]["LSize"]) #+ 1
+            elif self.NNArch[l]['AF'] == 'relu':
+                self.modelParams['W' + str(l)] = self.CallKaiming(self.NNArch[l-1]["LSize"],self.NNArch[l]["LSize"])
+                self.modelParams['b' + str(l)] = np.random.randn(NNArch[l]["LSize"]) #+ 1
+            elif self.NNArch[l]['AF'] == 'elu':
+                self.modelParams['W' + str(l)] = self.CallKaiming(self.NNArch[l-1]["LSize"],self.NNArch[l]["LSize"])
+                self.modelParams['b' + str(l)] = np.random.randn(NNArch[l]["LSize"]) #+ 1
+            else:
+                self.modelParams['W' + str(l)] = self.CallKaiming(self.NNArch[l-1]["LSize"],self.NNArch[l]["LSize"])
+                self.modelParams['b' + str(l)] = np.random.randn(NNArch[l]["LSize"]) #+ 1
             
-            #modelParams['b' + str(l)] = np.zeros((nInput, NNArch[l]["LSize"])) + 0.0001
-            
-            # shape should be of the amount of neurons per layer
-            #modelParams['b' + str(l)] = np.zeros(NNArch[l]["LSize"])# + 0.1
-            
-            #print("W"+str(l),np.shape(modelParams['W' + str(l)]))
-            #print(np.shape(modelParams['b' + str(l)]))
-            #np.random.randn
-        #print(modelParams)
-        #sys.exit()
-        return modelParams
+            self.update_params["v_w"+str(l)]=0
+            self.update_params["v_b"+str(l)]=0
+        #return self.modelParams
+    
+
     
     # Getting output for each layer
     def GetA(self, *args):
@@ -214,16 +203,79 @@ class NeuralNetwork:
         if self.NNArch[l]['AF'] == 'sigmoid':
             A = funclib.ActivationFuncs().CallSigmoid(Z)
         elif self.NNArch[l]['AF'] == 'relu':
+            # manual version:
             A = funclib.ActivationFuncs().CallReLU(Z)
+            #print(A)
+            # tensor flow version:
+            #A = tf.nn.relu(Z)
+            #print(A)
         elif self.NNArch[l]['AF'] == 'tanh':
             A = funclib.ActivationFuncs().CallTanh(Z)
         elif self.NNArch[l]['AF'] == 'softmax':
             A = funclib.ActivationFuncs().CallSoftmax(Z)
-        elif self.NNArch[l]['AF'] == 'identity':
+        elif self.NNArch[l]['AF'] == 'linear':
             A = funclib.ActivationFuncs().CallIdentity(Z)
         elif self.NNArch[l]['AF'] == 'elu':
             A = funclib.ActivationFuncs().CalleLU(Z)
         return A
+    
+    '''
+    Doing BAtch Normalisation - in case of simple gradient 
+    descent the batch size is the entire data set.
+    This method is used during Feed Forward, for back propagation 
+    there is another one below!
+    '''
+    def DoBatchNormalisation(self, *args):
+        X = args[0] # <= these are not actually X, but Z values 
+        gamma = args[1]
+        beta = args[2]
+        # parameters
+        eps = 1e-5
+        
+        #print(X.shape)
+        
+        # checking for matrix to be of the shape 2
+        #if X.shape == 2:
+        # mean of the mini-batch
+        batchMean = np.mean(X, axis=0)
+        # variance of the mini-batch
+        batchVar = np.var(X, axis=0)
+        # normalising
+        X_norm = (X - batchMean) * 1.0 / np.sqrt(batchVar + eps)
+        # scaled output
+        X_out = gamma * X_norm + beta
+        # people are usually storing stuff in cache so I will do the same thing
+        cache = (X, X_norm, batchMean, batchVar, gamma, beta)
+
+        return X_out, cache, batchMean, batchVar
+        #else:
+        #    print("Batch Normalisation: Check your X shape!")
+        #    sys.exit()
+            
+    '''
+    This one to implement Batch Normalisationwith Back Propagation
+    '''
+    def DoDBatchNormalisation(self, *args):
+        dout = args[0]
+        cache = args[1]
+        eps = 1e-5
+        # getting values from cache
+        X, X_norm, mu, var, gamma, beta = cache
+    
+        N, D = X.shape
+    
+        X_mu = X - mu
+        std_inv = 1. / np.sqrt(var + eps)
+    
+        dX_norm = dout * gamma
+        dvar = np.sum(dX_norm * X_mu, axis=0) * -.5 * std_inv**3
+        dmu = np.sum(dX_norm * -std_inv, axis=0) + dvar * np.mean(-2. * X_mu, axis=0)
+    
+        dX = (dX_norm * std_inv) + (dvar * 2 * X_mu / N) + (dmu / N)
+        dgamma = np.sum(dout * X_norm, axis=0)
+        dbeta = np.sum(dout, axis=0)
+    
+        return dX, dgamma, dbeta
     
     '''
     Feed Forward seems to return correct (!) shapes
@@ -231,22 +283,34 @@ class NeuralNetwork:
     
     # Method to Feed Forward Propagation
     def DoFeedForward(self, *args):
-        X = args[0]
-        modelParams = args[1]
+        X = args[0] # <= it will be of batch size (for Mini-Batch GD)
+        #self.modelParams = args[1]
+        # parameters for batch normalisation
+        gamma = 0.01
+        beta  = 0.01
         A = {}
         Z = {}
         # Values for Input Layer
         A['0'] = X
         Z['0'] = X
-        #print(X.shape)
-        #print(X)
+        
+        #cache['0'] = 0
+
         # compute model for each layer and 
         # apply corresponding activation function
         for l in range(1, self.nLayers):
-            #print("W"+str(l)+" is", modelParams['W' + str(l)])
+            #print("W"+str(l)+" is", np.shape(modelParams['W' + str(l)]))
             #print("b"+str(l)+" is", modelParams['b' + str(l)])
             # z for each layer
-            Z[str(l)] = np.matmul(A[str(l-1)],modelParams['W' + str(l)]) + modelParams['b' + str(l)]
+            Z[str(l)] = np.matmul(A[str(l-1)], self.modelParams['W' + str(l)]) + self.modelParams['b' + str(l)]
+            
+            
+            
+            # Doing batch Normalisation <= updating Z values for each batch
+            # We need to do normalisation only for training
+            
+            #Z[str(l)], cache, mu, var = self.DoBatchNormalisation(Z[str(l)], gamma, beta)
+            
             #if np.isnan(Z[str(l)]):
             #print("Z is", Z[str(l)])
             #print(Z[str(l)])
@@ -263,6 +327,12 @@ class NeuralNetwork:
             #    print('NaN values spotted')
             #print('l={}: Z={}, A={}' .format(l, np.shape(Z[str(l)]), np.shape(A[str(l)])))
 
+
+        #self.A1 = np.matmul(X, params["W1"]) + params["B1"] # (N, 2) * (2, 2) -> (N, 2)
+        #self.H1 = self.forward_activation(self.A1) # (N, 2)
+        #self.A2 = np.matmul(self.H1, params["W2"]) + params["B2"] # (N, 2) * (2, 4) -> (N, 4)
+        #self.H2 = self.softmax(self.A2) # (N, 4)
+        #return self.H2
 
         # Z1 (5000, 10), batch size 5000
         # A1 (5000, 10)
@@ -287,7 +357,7 @@ class NeuralNetwork:
             dAF = funclib.ActivationFuncs().CallDTanh(A)
         elif self.NNArch[l]['AF'] == 'softmax':
             dAF = funclib.ActivationFuncs().CallDSoftmax(A)
-        elif self.NNArch[l]['AF'] == 'identity':
+        elif self.NNArch[l]['AF'] == 'linear':
             dAF = funclib.ActivationFuncs().CallDIdentity(A)
         elif self.NNArch[l]['AF'] == 'elu':
             dAF = funclib.ActivationFuncs().CallDeLU(A)
@@ -301,9 +371,20 @@ class NeuralNetwork:
         #A, Z = self.DoFeedForward()
         Y = args[0]
         A = args[1]
-        Z = args[2]
-        modelParams = args[3]
+        #Z = args[2]
+        #self.modelParams = args[3]
         m = args[4]
+        
+        #self.forward_pass(X, params)
+        #m = X.shape[0]
+        #self.gradients["dA2"] = self.H2 - Y # (N, 4) - (N, 4) -> (N, 4)
+        #self.gradients["dW2"] = np.matmul(self.H1.T, self.gradients["dA2"]) # (2, N) * (N, 4) -> (2, 4)
+        #self.gradients["dB2"] = np.sum(self.gradients["dA2"], axis=0).reshape(1, -1) # (N, 4) -> (1, 4)
+        #self.gradients["dH1"] = np.matmul(self.gradients["dA2"], params["W2"].T) # (N, 4) * (4, 2) -> (N, 2)
+        #self.gradients["dA1"] = np.multiply(self.gradients["dH1"], self.grad_activation(self.H1)) # (N, 2) .* (N, 2) -> (N, 2)
+        #self.gradients["dW1"] = np.matmul(X.T, self.gradients["dA1"]) # (2, N) * (N, 2) -> (2, 2)
+        #self.gradients["dB1"] = np.sum(self.gradients["dA1"], axis=0).reshape(1, -1) # (N, 2) -> (1, 2)
+            
         X = args[5]
         # errors for output layer
         delta = {}
@@ -322,17 +403,27 @@ class NeuralNetwork:
                     delta[str(l)] = A[str(l)] - Y
                     # gradients of output layer (+ regularization)
                     # W^{l} = A^{l-1} * delta^{l}
-                    dJ['dW'+str(l)] = (1 / m) * np.matmul(A[str(l-1)].T, delta[str(l)]) \
-                    + self.lambd * modelParams['W' + str(l)] / m
-                    dJ['db'+str(l)] = (1 / m) * np.sum(delta[str(l)], axis=0)#, keepdims=True)                    
-                else:
-                    dAF = self.GetdAF(A[str(l)], l)
-                    delta[str(l)] = np.multiply(np.matmul(delta[str(l+1)], modelParams['W' + str(l+1)].T), dAF)
-                    # gradients of the hidden layer
-                    # W^{l} = A^{l-1} * delta^{l}
+                    '''
                     dJ['dW'+str(l)] = (1 / m) * np.matmul(A[str(l-1)].T, delta[str(l)]) \
                     + self.lambd * modelParams['W' + str(l)] / m
                     dJ['db'+str(l)] = (1 / m) * np.sum(delta[str(l)], axis=0)#, keepdims=True)
+                    '''
+                    dJ['dW'+str(l)] = (np.matmul(A[str(l-1)].T, delta[str(l)]) \
+                    + self.lambd * self.modelParams['W' + str(l)]) #/ m 
+                    dJ['db'+str(l)] = np.sum(delta[str(l)], axis=0) #/ m#, keepdims=True)
+                else:
+                    dAF = self.GetdAF(A[str(l)], l)
+                    delta[str(l)] = np.multiply(np.matmul(delta[str(l+1)], self.modelParams['W' + str(l+1)].T), dAF)
+                    # gradients of the hidden layer
+                    # W^{l} = A^{l-1} * delta^{l}
+                    '''
+                    dJ['dW'+str(l)] = (1 / m) * np.matmul(A[str(l-1)].T, delta[str(l)]) \
+                    + self.lambd * modelParams['W' + str(l)] / m
+                    dJ['db'+str(l)] = (1 / m) * np.sum(delta[str(l)], axis=0)#, keepdims=True)
+                    '''
+                    dJ['dW'+str(l)] = (np.matmul(A[str(l-1)].T, delta[str(l)]) \
+                    + self.lambd * self.modelParams['W' + str(l)]) #/ m
+                    dJ['db'+str(l)] = np.sum(delta[str(l)], axis=0) #/ m#, keepdims=True)
                 #print("dW"+str(l), dJ['dW'+str(l)].shape)
                 #print("db"+str(l), dJ['db'+str(l)].shape)
                 #print(dJ['dW'+str(l)])
@@ -351,21 +442,34 @@ class NeuralNetwork:
                     #beta = beta - alpha * (X.T.dot(X.dot(beta)-y)/m)
                     # gradients of output layer (+ regularization)
                     # W^{l} = A^{l-1} * delta^{l}
-                    dJ['dW'+str(l)] = (1 / m) * np.matmul(A[str(l-1)].T, delta[str(l)]) \
-                    + self.lambd * modelParams['W' + str(l)] / m
-                    dJ['db'+str(l)] = (1 / m) * np.sum(delta[str(l)], axis=0)#, keepdims=True)
+                    dJ['dW'+str(l)] = (np.matmul(A[str(l-1)].T, delta[str(l)]) \
+                    + self.lambd * self.modelParams['W' + str(l)])# / m
+                    #print(dJ['dW'+str(l)])
+                    dJ['db'+str(l)] = np.sum(delta[str(l)], axis=0) / m#, keepdims=True)
+                    # clipping gradients:
+                    #if dJ['dW'+str(l)].any() > 10 or dJ['dW'+str(l)].any() < -10:
+                    #    dJ['dW'+str(l)] = np.slip(dJ['dW'+str(l)], 0, 1)
+                    #if dJ['db'+str(l)].any() > 10 or dJ['db'+str(l)].any() < -10:
+                    #    dJ['db'+str(l)] = np.slip(dJ['db'+str(l)], 0, 1)
                 else:
                     #dAF = funclib.ActivationFuncs().CallDSigmoid(A[str(l)])
                     # Calling derivative of current activation function
                     dAF = self.GetdAF(A[str(l)], l)
-                    delta[str(l)] = np.multiply(np.matmul(delta[str(l+1)], modelParams['W' + str(l+1)].T), dAF)
+                    delta[str(l)] = np.multiply(np.matmul(delta[str(l+1)], self.modelParams['W' + str(l+1)].T), dAF)
                     #print("delta"+str(l), delta[str(l)].shape)
                     # gradients of the hidden layer
                     # W^{l} = A^{l-1} * delta^{l}
-                    dJ['dW'+str(l)] = (1 / m) * np.matmul(A[str(l-1)].T, delta[str(l)]) \
-                    + self.lambd * modelParams['W' + str(l)] / m
-                    dJ['db'+str(l)] = (1 / m) * np.sum(delta[str(l)], axis=0)#, keepdims=True)
-                #print("dW"+str(l), dJ['dW'+str(l)].shape)
+                    dJ['dW'+str(l)] = (np.matmul(A[str(l-1)].T, delta[str(l)]) \
+                    + self.lambd * self.modelParams['W' + str(l)]) / m
+                    dJ['db'+str(l)] = np.sum(delta[str(l)], axis=0) / m#, keepdims=True)
+                    
+                    # clipping gradients:
+                    #if dJ['dW'+str(l)].any() > 10 or dJ['dW'+str(l)].any() < -10:
+                    #    dJ['dW'+str(l)] = np.slip(dJ['dW'+str(l)], 0, 1)
+                    #if dJ['db'+str(l)].any() > 10 or dJ['db'+str(l)].any() < -10:
+                    #    dJ['db'+str(l)] = np.slip(dJ['db'+str(l)], 0, 1)
+                        
+                #print("dW"+str(l), dJ['dW'+str(l)])
                 #print("db"+str(l), dJ['db'+str(l)].shape)
             
         return dJ
@@ -374,15 +478,39 @@ class NeuralNetwork:
     # (on each iteration)
     def UpdateWeights(self, *args):
         dJ = args[0]
-        modelParams = args[1]
+        #self.modelParams = args[1]
         m = args[2]
-        for l in range(1, self.nLayers):
-            modelParams['W' + str(l)] -= dJ['dW' + str(l)] * self.alpha/m# * np.sqrt(6.0 / (n_l + n_next)) # <= this one should be correct
-            modelParams['b' + str(l)] -= dJ['db' + str(l)] * self.alpha/m# * np.sqrt(6.0 / (n_l + n_next)) # <= this one should be correct
-            #print(modelParams['W' + str(l)])
-        #print(modelParams)
         
-        return modelParams
+        gamma = 0.9
+        eps=1e-8
+        
+        algorithm = 'AdaGrad'
+        
+        # Different versions of weights updates :)
+        if algorithm == 'GD':            
+            for l in range(1, self.nLayers):
+                self.modelParams['W' + str(l)] -= dJ['dW' + str(l)] * self.alpha / (m)# * np.sqrt(6.0 / (n_l + n_next)) # <= this one should be correct
+                self.modelParams['b' + str(l)] -= dJ['db' + str(l)] * self.alpha / (m)# * np.sqrt(6.0 / (n_l + n_next)) # <= this one should be correct
+        elif algorithm == 'MiniBatch':
+            for batch in range(self.BatchSize):
+                for l in range(1, self.nLayers):
+                    self.modelParams['W' + str(l)] -= dJ['dW' + str(l)] * self.alpha / (m)# * np.sqrt(6.0 / (n_l + n_next)) # <= this one should be correct
+                    self.modelParams['b' + str(l)] -= dJ['db' + str(l)] * self.alpha / (m)# * np.sqrt(6.0 / (n_l + n_next)) # <= this one should be correct
+        elif algorithm == "Momentum":
+            for l in range(1, self.nLayers):
+                self.update_params["v_w"+str(l)] = gamma *self.update_params["v_w"+str(l)] + self.alpha * (dJ['dW' + str(l)]/m)
+                self.update_params["v_b"+str(l)] = gamma *self.update_params["v_b"+str(l)] + self.alpha * (dJ['db' + str(l)]/m)
+                self.modelParams["W"+str(l)] -= self.update_params["v_w"+str(l)]
+                self.modelParams["b"+str(l)] -= self.update_params["v_b"+str(l)]
+        elif algorithm == "AdaGrad":
+            for l in range(1, self.nLayers):
+                self.update_params["v_w"+str(l)] += (dJ['dW' + str(l)]/m)**2
+                self.update_params["v_b"+str(l)] += (dJ['db' + str(l)]/m)**2
+                self.modelParams["W"+str(l)] -= (self.alpha/(np.sqrt(self.update_params["v_w"+str(l)])+eps)) * (dJ['dW' + str(l)]/m)
+                self.modelParams["b"+str(l)] -= (self.alpha/(np.sqrt(self.update_params["v_b"+str(l)])+eps)) * (dJ['db' + str(l)]/m)
+
+    
+        #return self.modelParams
     
     # Train Neural Network using Gradient Descent
     def TrainNetworkGD(self, *args):
@@ -391,63 +519,73 @@ class NeuralNetwork:
         #print(Ytrain)
         m = args[2]
         
+        #print("NN m is", m)
+        
         # Initialising parameters
-        modelParams = self.InitParams(self.NNArch, self.nInput)
+        #self.modelParams = self.InitParams(self.NNArch, self.nInput)
+        self.InitParams(self.NNArch, self.nInput)
+        
         costs =  []        
         if self.NNType == 'Classification':
+            #tqdm_notebook(range(epochs), total=epochs, unit="epoch")
             # Running Optimisation Algorithm
-            for epoch in range(1, self.epochs+1, 1):
+            for epoch in tqdm_notebook(range(self.epochs), total=self.epochs, unit="epoch"):#range(0, self.epochs, 1):
                 # Propagating Forward
-                A, Z = self.DoFeedForward(X_train, modelParams)
+                A, Z = self.DoFeedForward(X_train, self.modelParams)
                 # Calculating cost Function
                 J = funclib.CostFuncs().CallNNLogistic(Y_train,\
                                      A[str(self.nLayers-1)],\
-                                     modelParams,\
+                                     self.modelParams,\
                                      self.nLayers,\
                                      m,\
                                      self.lambd, X_train)
                 #print(J)
                 # Back propagation - gradients
-                dJ = self.DoBackPropagation(Y_train, A, Z, modelParams, m, X_train)
+                dJ = self.DoBackPropagation(Y_train, A, Z, self.modelParams, m, X_train)
                 #print(dJ)
                 # updating weights
-                modelParams = self.UpdateWeights(dJ, modelParams, m)
+                #modelParams = self.UpdateWeights(dJ, self.modelParams, m)
+                self.UpdateWeights(dJ, self.modelParams, m)
                 # getting values of cost function at each epoch
                 if(epoch % 1 == 0):
                     print('Cost after iteration# {:d}: {:f}'.format(epoch, J))
                 costs.append(J)
             # returning set of optimal model parameters
-            return modelParams, costs
+            return self.modelParams, costs
         
         elif self.NNType == 'Regression':
             # Running Optimisation Algorithm
-            for epoch in range(1, self.epochs+1, 1):
+            for epoch in tqdm_notebook(range(self.epochs), total=self.epochs, unit="epoch"):#for epoch in range(1, self.epochs+1, 1):
                 # Propagating Forward
-                A, Z = self.DoFeedForward(X_train, modelParams)
+                A, Z = self.DoFeedForward(X_train, self.modelParams)
                 # Calculating cost Function
                 J = funclib.CostFuncs().CallNNMSE(Y_train,\
                                      A[str(self.nLayers-1)],\
-                                     modelParams,\
+                                     self.modelParams,\
                                      self.nLayers,\
                                      m,\
                                      self.lambd, X_train)
                 #print(J)
                 # Back propagation - gradients
-                dJ = self.DoBackPropagation(Y_train, A, Z, modelParams, m, X_train)
+                dJ = self.DoBackPropagation(Y_train, A, Z, self.modelParams, m, X_train)
                 #print(dJ)
                 # updating weights
-                modelParams = self.UpdateWeights(dJ, modelParams, m)
+                #self.modelParams = self.UpdateWeights(dJ, self.modelParams, m)
+                self.UpdateWeights(dJ, self.modelParams, m)
                 
                 #print(modelParams)
-                
+                #print(epoch, J, dJ)
                 # getting values of cost function at each epoch
-                if(epoch % 1 == 0):
-                    print('Cost after iteration# {:d}: {:f}'.format(epoch, J))
+                #if(epoch % 1 == 0):
+                #    print('Cost after iteration# {:d}: {:f}'.format(epoch, J))
                 costs.append(J)
             # returning set of optimal model parameters
-            return modelParams, costs
+            return self.modelParams, costs
         else:
             Exception('It is neither Regression nor Classification task! Check Parameter File.')
+    
+    
+
     
     # Train Neural Network using Mini Batch Stochastic Gradient Descent
     def TrainNetworkMBGD(self, *args):
@@ -461,14 +599,9 @@ class NeuralNetwork:
         # sum the values with same keys 
         #counter = collections.Counter()
         cost = 0
-        #paramsW, paramsb = [], []
-        #params = {}
-        #for l in range(1, self.nLayers):
-            #paramsW.append(modelParams['W' + str(l)])
-        #    params['W' + str(l)] = np.zeros((self.NNArch[l-1]["LSize"], self.NNArch[l]["LSize"]))
-        #    params['b' + str(l)] = np.zeros((self.nInput, self.NNArch[l]["LSize"]))
-        #sumValue1, sumValue2 = 0, 0
-        nBatches = self.nInput // self.BatchSize
+        self.nBatches = self.nInput // m
+        
+        print("nBatches", self.nBatches)
         
         #print(nBatches)
         # getting all the indecis from inputs
@@ -489,66 +622,78 @@ class NeuralNetwork:
         theta = theta – learning_rate*gradient(theta)
         '''
         # that we starting at the spot in the parameter space
-        modelParams = self.InitParams(self.NNArch, self.BatchSize)
+        #self.modelParams = self.InitParams(self.NNArch, m)
+        self.InitParams(self.NNArch, m)
+        
         if self.NNType == 'Classification':
             # Running Optimisation Algorithm
-            for epoch in range(1, self.epochs+1, 1):
+            for epoch in tqdm_notebook(range(self.epochs), total=self.epochs, unit="epoch"):#for epoch in range(1, self.epochs+1, 1):
                 # looping through all batches
-                for j in range(nBatches):
+                for j in range(self.nBatches):
                     # chosing the indexes for playing around
-                    points = np.random.choice(indices, size=self.BatchSize, replace=False)
+                    points = np.random.choice(indices, size=m, replace=False)
                     X_train_batch = X_train[points]
                     Y_train_batch = Y_train[points]
                     #print(np.shape(X_train_batch))
                     # Propagating Forward
-                    A, Z = self.DoFeedForward(X_train_batch, modelParams)
+                    A, Z = self.DoFeedForward(X_train_batch, self.modelParams)
                     # Calculating cost Function
                     J = funclib.CostFuncs().CallNNLogistic(Y_train_batch,\
                                          A[str(self.nLayers-1)],\
-                                         modelParams,\
+                                         self.modelParams,\
                                          self.nLayers,\
                                          m,\
                                          self.lambd)
+                    # trying scikit leaкт <= didn't work out very well
+                    #J = log_loss(np.argmax(Y_train_batch, axis=1), A[str(self.nLayers-1)])
                                         # Back propagation - gradients
-                    dJ = self.DoBackPropagation(Y_train_batch, A, Z, modelParams, m, X_train)
+                    dJ = self.DoBackPropagation(Y_train_batch, A, Z, self.modelParams, m, X_train)
                     # updating weights
-                    modelParams = self.UpdateWeights(dJ, modelParams, m)
+                    #self.modelParams = self.UpdateWeights(dJ, self.modelParams, m)
+                    self.UpdateWeights(dJ, self.modelParams, m)
+                    
                     cost += J/self.nInput
                 if(epoch % 1 == 0):
                     print('Cost after iteration# {:d}: {:f}'.format(epoch, J))
                 costs.append(J)
                 
-            return modelParams, costs
+            return self.modelParams, costs
         
         elif self.NNType == 'Regression':
             # Running Optimisation Algorithm
-            for epoch in range(1, self.epochs+1, 1):
-               # looping through all batches
-                for j in range(nBatches):
+            for epoch in tqdm_notebook(range(self.epochs), total=self.epochs, unit="epoch"):#for epoch in range(1, self.epochs+1, 1):
+                #points = np.random.permutation(indices, size=m)
+                # looping through all batches
+                for j in range(self.nBatches):
                     # chosing the indexes for playing around
-                    points = np.random.choice(indices, size=self.BatchSize, replace=False)
+                    points = np.random.choice(indices, size=m, replace=False)
                     X_train_batch = X_train[points]
                     Y_train_batch = Y_train[points]
                     #print(np.shape(X_train_batch))
                     # Propagating Forward
-                    A, Z = self.DoFeedForward(X_train_batch, modelParams)
+                    A, Z = self.DoFeedForward(X_train_batch, self.modelParams)
                     # Calculating cost Function
                     J = funclib.CostFuncs().CallNNMSE(Y_train_batch,\
                                          A[str(self.nLayers-1)],\
-                                         modelParams,\
+                                         self.modelParams,\
                                          self.nLayers,\
                                          m,\
                                          self.lambd, X_train_batch)
                                         # Back propagation - gradients
-                    dJ = self.DoBackPropagation(Y_train_batch, A, Z, modelParams, m, X_train_batch)
+                    dJ = self.DoBackPropagation(Y_train_batch, A, Z, self.modelParams, m, X_train_batch)
                     # updating weights
-                    modelParams = self.UpdateWeights(dJ, modelParams, m)
+                    #self.modelParams = self.UpdateWeights(dJ, self.modelParams, m)
+                    self.UpdateWeights(dJ, self.modelParams, m)
+                                        
                     cost += J/self.nInput
-                if(epoch % 1 == 0):
-                    print('Cost after iteration# {:d}: {:f}'.format(epoch, J))
+                    
+                #print(modelParams)
+                #print(epoch, dJ)
+                #if(epoch % 1 == 0):
+                #    print('Cost after iteration# {:d}: {:f}'.format(epoch, J))
                 costs.append(J)
             # returning set of optimal model parameters
-            return modelParams, costs
+            return self.modelParams, costs
         else:
             Exception('It is neither Regression nor Classification task! Check Parameter File.')
                     #print("modelParams", modelParams)
@@ -580,19 +725,11 @@ class NeuralNetwork:
     def MakePrediction(self, *args):
         # making prediction for the data set
         X_test = args[0]
-        
-        #print("X_test is", X_test)
-        
+
         modelParams = args[1]
-        
-        #print(modelParams)
-        
-        
+
         # making a prediction
         A, Z = self.DoFeedForward(X_test, modelParams)#self.feed_forward_out(X)
-        
-        #print("AL is", A[str(self.nLayers-1)])
-        
         
         if self.NNType == 'Classification':
             # outputting the values which corresponds to the maximum probability

@@ -25,6 +25,9 @@ import seaborn as sbn
 
 from collections import Counter
 
+# trying another loss calculation
+from keras import backend as K
+
 import time
 
 '''
@@ -61,6 +64,7 @@ class ActivationFuncs:
     # Rectified Linear Unit Function <= need to check this one
     def CallReLU(self, *args):
         z = args[0]
+        #z[z < 0] = 0
         return np.maximum(z, 0)
     
     # ReLU's derivative
@@ -70,7 +74,7 @@ class ActivationFuncs:
         #    return 0
         #elif z >= 0:
         #    return (z>0)
-        return (z > 0)
+        return 1.0 * (z > 0)
     
     # Softmax function
     def CallSoftmax(self, *args):
@@ -176,93 +180,7 @@ class OptimizationFuncs:
         return
     
         # Stochastic gradient descent method with batches
-    '''
-    def SGD_batch(self, X, y, lr = 0.01, tol=1e-4, n_iter=1, batch_size=100, n_epoch=100, rnd_seed=False, adj_lr=False, rnd_batch=False, verbosity=0,lambda_r=0.0,new_per_iter=False):
 
-        # lambda_r = lambda value for ridge regulation term in cost function.
-        print("Doing SGD for logreg")
-        n = len(y) 
-        costs = []                                  # Initializing cost list
-        
-        if (rnd_seed):
-            np.random.seed(int(time.time()))
-        self.beta = np.random.randn(X.shape[1],1)   # Drawing initial random beta values
-        tar = X@self.beta
-        min_cost = self.cost.f(tar,y) + lambda_r*np.sum(self.beta**2)  # Save cost of new beta
-
-        best_beta=self.beta.copy()
-
-        # adjustable learning rate
-        if (adj_lr):
-            t0 = 5*n
-            #t0 = n
-            lr0=lr
-
-        # We do several SGD searches with new batches for each search, with new searches
-        # starting from the previous endpoint
-        betas=np.zeros(shape=(X.shape[1]+1,n_iter)) #array to store the best betas with corresponding cost per iteration
-        for i in range(n_iter):
-            if (new_per_iter):
-                self.beta = np.random.randn(X.shape[1],1)
-                tar = X@self.beta
-                min_cost = self.cost.f(tar,y) + lambda_r*np.sum(self.beta**2) 
-                best_beta=self.beta.copy()
-
-            if (verbosity>0):
-
-                print('  search %i of %i'%(i+1,n_iter))
-            # Data is (semi) sorted on age after index ~15000,
-            # dividing into batches based on index is therefore potentially not random.
-            # We therefore have 2 options, (1) draw batch_size random values for each
-            # iteration 'j', or (2) split data into m batches before starting
-            m=int(n/batch_size)
-            if (rnd_batch):
-                nbatch=[]
-                nbatch.append(batch_size)
-                idx=0
-            else:
-                batch_idx,nbatch=self.split_batch(n,m)
-            for k in range(n_epoch):
-                if (verbosity>1):
-                    print('    epoch %i of %i'%(k+1,n_epoch))
-                for j in range(m):
-                    #values instead
-                    if (rnd_batch):
-                        idx_arr = np.random.randint(0,n,batch_size) # Choose n random data rows
-                    else:
-                        idx=np.random.randint(0,m)
-                        idx_arr = batch_idx[idx,:nbatch[idx]]
-                    X_ = X[idx_arr,:].reshape(nbatch[idx],X.shape[1]) # Select batch data
-                    y_ = y[idx_arr].reshape(nbatch[idx],1)            # select corresponding prediction
-                    b = X_@self.beta                # Calculate current prediction
-                    gradient = ( X_.T @ (self.act.f(b)-y_)) + 2.0*lambda_r*self.beta # Calculate gradient
-                    if (adj_lr):
-                        #as iterations increase, the step size in beta is reduced
-                        lr=(lr0*t0)/(t0+k*n+j*batch_size)
-
-                    self.beta = self.beta - lr*gradient    # Calculate perturbation to beta
-
-                #after each epoch we compute the cost (majority of runtime)
-                tar = X@self.beta
-                #calculate total cost (This takes a long time!!). Has support for ridge
-                cost = self.cost.f(tar,y) + lambda_r*np.sum(self.beta**2)
-                costs.append(cost)                      # Save cost of new beta
-                if (cost < min_cost):
-                    min_cost=cost
-                    best_beta=self.beta.copy()
-            betas[:X.shape[1],i]=best_beta[:,0].copy()
-            betas[X.shape[1],i]=min_cost.copy()
-        # if we draw new initial betas per iteration, we need to find the beta giving the
-        # smallest cost of all iterations. If not, then the final best_beta is the one
-        # we're after 
-        if (new_per_iter):
-            idx=np.argmin(betas[X.shape[1],:]) #find index with lowest cost
-            self.beta[:,0]=betas[:X.shape[1],idx].copy() #finally return beta with the lowest total cost
-        else:
-            self.beta=best_beta.copy() #finally return beta with the lowest total cost
-
-        return best_beta, costs, betas
-    '''
     
 '''
 Class which contsins all Cost functions
@@ -336,8 +254,36 @@ class CostFuncs:
         nLayers = args[3]
         m =args[4]
         lambd = args[5]
+        
+        #print("AL", AL)
+        #print("Y", Y)
+        
+        
+        #print(np.mean(np.square(AL-Y)))
+        #print(np.mean((np.abs(AL-Y))))
+        #print(np.mean(np.log(np.cosh(AL-Y))))
+        
+        #print(np.sum(np.power((Y-AL),2))/(Y.shape[0]))
+        
+        #print(np.sum(np.abs((Y-AL)))/(Y.shape[0]))
+        
+        #print(np.mean(np.abs(Y-AL)))
+        #print(np.mean((AL-Y)**2))
+        #print(np.sum((AL-Y)**2)/len(AL-Y))
         #print(modelParams)
-        J = 0.5*np.mean(( AL.ravel() - Y.ravel() )**2)
+        #J = np.mean(np.sqrt(np.sum((AL - Y)**2)))#/len(AL)
+        #J = np.mean(np.abs(AL - Y))
+        #J = np.mean(np.log(np.cosh(AL-Y)))
+        #print(J)
+        #sys.exit()
+        #print("AL", np.shape(AL))
+        #print("Y", np.shape(Y))
+        
+        #J =  0.5 * np.mean(np.square(AL.ravel() - Y.ravel()))
+        J =  0.5 * np.sum(np.square(AL.ravel() - Y.ravel())) / m
+        
+        #J = K.sqrt(K.mean(K.square(AL - Y), axis=None))
+        #print(J)
         if np.isnan(J):
             sys.exit()
             print("J", J)
@@ -347,11 +293,16 @@ class CostFuncs:
         for l in range(1, nLayers, 1):
             Wtot += np.sum(np.square(modelParams['W' + str(l)]))
         Wtot = Wtot * lambd / (2*m)
+        #print("Wtot", Wtot)
         if np.isnan(Wtot):
-            
             print("Wtot", Wtot)
+            
         J = J + Wtot
+        np.squeeze(J)
         
+        #print("Wtot is", Wtot)
+        
+        #print("J is ", J)
 
         return  J
 
@@ -612,6 +563,18 @@ class DataFuncs:
         y = args[1]
         return (1.5 - x + x*y)**2 + (2.25 - x + x*y**2)**2 + (2.625 - x + x*y**3)**2
     
+    # Paraboloid
+    def CallParaboloid(self, *args):
+        x = args[0] 
+        y = args[1]
+        return (x**2 - y**2)
+    
+    # Sine
+    def CallSinus(self, *args):
+        x = args[0] 
+        y = args[1]
+        return np.sin(x*y)
+    
 '''
 Class which contains ll plotting functions
 '''
@@ -650,71 +613,4 @@ class PlotFuncs:
         #plt.ioff()
         
         
-    def plot_cumulative(self,X,y,p=[],beta=[],label='',plt_ar=True,return_ar=False):
-        if (len(p)==0):
-            if(len(beta)==0):
-                beta=self.beta
-            p=self.act.f(X@beta)
-        if (not label==''):
-            lab = '_'+label
-        else:
-            #make a date and time stamp
-            t=time.ctime()
-            ta=t.split()
-            hms=ta[3].split(':')
-            label=ta[4]+'_'+ta[1]+ta[2]+'_'+hms[0]+hms[1]+hms[2]
-            lab='_'+label
-        temp_p=p[:,0].copy()
-        nd=len(temp_p)
-        nt=np.sum(y)
-        model_pred=np.zeros(nd+1)
-        for i in range(len(temp_p)):
-            idx=np.argmax(temp_p)
-            model_pred[i+1]=model_pred[i]+y[idx,0]
-            temp_p[idx]=-1.0
-
-        x_plt=np.arange(nd+1)
-        best_y=np.arange(nd+1)
-        best_y[nt:]=nt
-        baseline=(1.0*nt)/nd*x_plt
-
-        ar=1.0*np.sum(model_pred-baseline)/np.sum(best_y-baseline)
-        if return_ar:
-            return ar
-
-        xtick=[]
-        if (nd<2000):
-            j=500
-            nm=2001
-        else:
-            j=4000
-            nm=16000
-        for k in range(0,nm,j):
-            xtick.append(k)
-            if (k>nd):
-                break
-        if (label=='lift'):
-            xtick = [0,nt,nd]
-            xtick_lab=['0',r'$N_t$',r'$N_d$']
-            ytick = [0,nt]
-            ytick_lab=['0',r'$N_t$']
-        plt.figure(1,figsize=(7,7))
-        plt.plot(x_plt,best_y,label='Best fit',color=plt.cm.tab10(0))
-        plt.plot(x_plt,model_pred,label='Model',color=plt.cm.tab10(1))
-        plt.plot(x_plt,baseline,label='Baseline',color=plt.cm.tab10(7))
-        plt.legend(loc='lower right',fontsize=22)
-        plt.xlabel('Number of total data',fontsize=22)
-        if (label=='lift'):
-            plt.xticks(xtick,xtick_lab,fontsize=18)
-            plt.yticks(ytick,ytick_lab,fontsize=18)
-        else:
-            plt.xticks(xtick,fontsize=18)
-            plt.yticks(fontsize=18)
-        plt.ylabel('Cumulative number of target data',fontsize=22)
-        if (plt_ar):
-            plt.text(nd*0.55,nt*0.4,'area ratio = %5.3f'%(ar), fontsize=20)
-        plt.savefig('plots/cumulative_plot'+lab+'.pdf',bbox_inches='tight',pad_inches=0.02)
-        plt.clf()
-
-        return
-    
+ 

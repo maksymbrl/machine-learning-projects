@@ -2,7 +2,7 @@
 # Parameter file for configuring NeuralNetwork 
 #=============================================================================#
 # Type of task to address
-type:           'Classification' #['Classification', 'Regression']
+type:           'Regression' #['Classification', 'Regression']
 # Path to data
 dataPath:       'data/credit_data.xls'
 # Output Path - where to save all the files (phg's etc.)
@@ -10,26 +10,26 @@ outputPath:     'output/'
 # Specify the seed
 RandomSeed:     1
 # Choose number of layers (can be any number)
-nHiddenLayers:  0 # type 0 to run Logistic Regression
+nHiddenLayers:  1 # type 0 to run Logistic Regression
 # Activation functions for hidden and output layers
 # (['sigmoid', 'tanh', 'relu', 'softmax'])
-hiddenFunc:     'tanh' #'sigmoid'
-outputFunc:     'softmax' #'identity' #'softmax'
+hiddenFunc:     'relu' #'sigmoid'
+outputFunc:     'linear' #'identity' #'softmax'
 # Size of the test sample
-testSize:       0.2
+testSize:       0.5
 # Number of Neurons for hidden and output layers
-nHiddenNeurons: 2  # 30
-nOutputNeurons: 2 # for binary classification tasks it is 1 or 2
+nHiddenNeurons: 21 # 21 # 4  # 30
+nOutputNeurons: 1 # classification = 2, Regression = 1
 # Epochs to train the algorithm
 epochs:         100 #200 #170
 # Optimization Algorithm: choose it wisely :)
-Optimization:   'GD' #['GD', 'MBGD', 'All'] <= haven't implemented this feature yet
+Optimization:   'GD' #['Momentum', 'MiniBatch', 'AdaGrad' 'GD', 'MBGD', 'All'] <= haven't implemented this feature yet
 # Batch size for Gradient Descent => if 0, will use simple gradient descent
-BatchSize:      0 #10000
+BatchSize:      2 #16 # 1 #10000 <= increase batch size and it will be good
 # Learning rate
-alpha:          0.1 # 0.01 #0.0001 #np.logspace(-5, 1, 7)
+alpha:          0.1 # 0.01 # 0.01 #0.0001 #np.logspace(-5, 1, 7)
 # Regularisation
-lambda:         0.0000001 # np.logspace(-5, 1, 7) # if 0 then no regularisation used
+lambda:         0.0001 #0.0000001 # np.logspace(-5, 1, 7) # if 0 then no regularisation used
 # The range of alphas to apply grid search
 alphas:         [-5, 1, 7] # np.logspace(-5, 1, 7)
 lambdas:        [-5, 1, 7]
@@ -43,13 +43,13 @@ lambdas:        [-5, 1, 7]
 #
 # Please, bear in mind that, you still need to specify the type of analysis
 # and also all other necessary parameters.
-function:       'Franke' # <= in current version doesn't affect anything
+function:       'Franke' # ['Franke', 'Paraboloid', 'Beale']
 # number of independent variables
 nVars:          2
 # polynomial degree to approximate
 degree:         5
 # number of grid points (e.g. if 100, we get grid 100x100)
-nPoints:        80 # 100 #<= overfitting?
+nPoints:        40 # 100 #<= overfitting?
 # noise level, aka sigma/psilon/whatever
 noise:          0.01
 # number of processors to use - useless parameter

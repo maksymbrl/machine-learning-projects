@@ -33,13 +33,12 @@ import yaml
 # Scikitlearn imports to check results
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.model_selection import GridSearchCV, train_test_split, KFold
-from sklearn.metrics import confusion_matrix, recall_score, precision_score, accuracy_score, f1_score, roc_auc_score, classification_report
+from sklearn.metrics import confusion_matrix, roc_curve, auc, roc_auc_score
+from sklearn.metrics import recall_score, precision_score, accuracy_score, f1_score, classification_report
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
 from numpy import argmax
 
 # We'll need some metrics to evaluate our models
-from sklearn.metrics import confusion_matrix
-from sklearn.model_selection import cross_val_score
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 
 
@@ -48,6 +47,7 @@ import keras
 from keras.optimizers import SGD
 from keras.models import Sequential
 from keras.layers import Dense
+from keras.callbacks import History
 
 
 # importing manually created libraries
@@ -85,6 +85,7 @@ def DoGriSearchClassification(logisticData, i, j, alpha, lmbd):
     recall = []
     accuracy = []
     f1 = []
+    roc_auc = []
     costsTrain = []
     #print(Y_onehot[10000][:])
     # Getting cost function averaged over all epochs
@@ -105,6 +106,7 @@ def DoGriSearchClassification(logisticData, i, j, alpha, lmbd):
         recall.append(recall_score(Y_test, Y_pred))
         accuracy.append(accuracy_score(Y_test, Y_pred, normalize=True))
         f1.append(f1_score(Y_test, Y_pred))
+        roc_auc.append(roc_auc_score(Y_test,Y_pred))
         costsTrain.append(costs)
         
     # averaged scores for give set of alphas and lambdas
@@ -112,6 +114,8 @@ def DoGriSearchClassification(logisticData, i, j, alpha, lmbd):
     ARecall = sum(recall)/len(recall)
     AAccuracy = sum(accuracy)/len(accuracy)
     AF1 = sum(f1)/len(f1)
+    
+    AROC = sum(roc_auc)/len(roc_auc)
 
     # for given set of lambda and alpha parameters (regularization and learning rate)
     # I return the set of precision, recall, accuracy and f1 scores
@@ -124,7 +128,8 @@ def DoGriSearchClassification(logisticData, i, j, alpha, lmbd):
     myResult = pd.DataFrame(results)
     '''
     # decided to go only with accuracy to find the highest value
-    results = {AAccuracy: ['lambda='+str(lmbd)+', alpha='+str(alpha)]}#{'lambda='+str(lmbd)+', alpha='+str(alpha): [AAccuracy]}#, 'alpha='+str(alpha): [AAccuracy]}
+    #results = {AAccuracy: ['lambda='+str(lmbd)+', alpha='+str(alpha)]}#{'lambda='+str(lmbd)+', alpha='+str(alpha): [AAccuracy]}#, 'alpha='+str(alpha): [AAccuracy]}
+    results = {AROC: ['lambda='+str(lmbd)+', alpha='+str(alpha)]}
     myResult = pd.DataFrame(results)
     
     # returning costs and theta parameters
@@ -249,10 +254,17 @@ if __name__ == '__main__':
         nInput, seed, onehotencoder,\
         BatchSize, Optimization = dataProc.CreateNetwork()
         
-        print("nInput", nInput)
+        
+        #print("X is ", X)
+        #print("Y is",  Y)
+        
+        #sys.exit()
+        
+        #print("nInput", nInput)
         if BatchSize == 0:
             # If batch size is zero, we will use standard Gradient Descent Method
             m = nInput
+            #print("m is",m)
         elif BatchSize > 0:
             m = BatchSize
         else:
@@ -337,6 +349,7 @@ if __name__ == '__main__':
             costsList = []
             paramList = []
             epochs1 = range(epochs)
+            fig = plt.figure()
             # okay, I've got a set of parameters  for which I can now plot stuff
             for i in range(len(params)):
                 # getting the best parameters - converting string to floats
@@ -361,7 +374,18 @@ if __name__ == '__main__':
                     print(classification_report(Y_test, Y_pred))
                     costsList.append(costs)
                     paramList.append(params[i])
-                    # plotting stuff
+                    # Calculating Roc_auc
+                    fpr, tpr, thresholds = roc_curve(y_true = Y_test, y_score = Y_pred, pos_label = 1) #positive class is 1; negative class is 0
+                    roc_auc = auc(fpr, tpr)
+                    lw = 2
+                    plt.plot(fpr, tpr, color='darkorange', lw=lw, label='ROC curve (area = %0.2f)' % roc_auc)
+                    plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+                    plt.xlim([0.0, 1.0])
+                    plt.ylim([0.0, 1.05])
+                    plt.xlabel('False Positive Rate')
+                    plt.ylabel('True Positive Rate')
+                    plt.title('Receiver operating characteristic example')
+                    plt.legend(loc="lower right")
 
             #print(costsList)
             fig,ax = plt.subplots(figsize=(12, 8))
@@ -377,23 +401,25 @@ if __name__ == '__main__':
             # saving cost functions
             filename = outputPath + '/'+ 'linreg_costs_e' + str(epochs).zfill(4)+'.png'
             fig.savefig(filename)
-            # Plotting results
-            #fig,ax = plt.subplots(figsize=(12, 8))
-        
-            #ax.set_ylabel('J(Theta)')
-            #ax.set_xlabel('Iterations')
-            #ax.plot(epochs1, costsList,'b.')
             
+            # Calculating Roc metrics
+            #fpr, tpr, thresholds = roc_curve(y_true = Y_test, y_score = Y_pred, pos_label = 1) #positive class is 1; negative class is 0
+            #roc_auc = auc(fpr, tpr)
             
-            #epochs1 = range(epochs)
-            # Plotting results
-            #fig,ax = plt.subplots(figsize=(12,8))
-        
-            #ax.set_ylabel('J(Theta)')
-            #ax.set_xlabel('Iterations')
-            #ax.plot(epochs1, costs,'b.')
+            #fig = plt.figure()
+            #lw = 2
+            #plt.plot(fpr, tpr, color='darkorange',
+            #         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc)
+            #plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+            #plt.xlim([0.0, 1.0])
+            #plt.ylim([0.0, 1.05])
+            #plt.xlabel('False Positive Rate')
+            #plt.ylabel('True Positive Rate')
+            #plt.title('Receiver operating characteristic example')
+            #plt.legend(loc="lower right")
+            #plt.show()
             
-            sys.exit()
+            #sys.exit()
             
             '''
             param_grid = dict(batch_size=batch_size, epochs=epochs)
@@ -472,7 +498,7 @@ if __name__ == '__main__':
             ‘roc_auc’	metrics.roc_auc_score
             '''
     
-            lambdas=np.logspace(-5,7,13)
+            #lambdas=np.logspace(-5,7,13)
             parameters = [{'C': 1./lambdas, "solver":["lbfgs"]}]#*len(parameters)}]
             scoring = ['accuracy','precision', 'recall', 'f1', 'roc_auc']
             logReg = LogisticRegression()
@@ -499,13 +525,22 @@ if __name__ == '__main__':
             '''
             Plotting Results - Cost Function
             '''
-            epochs1 = range(epochs)
+            #epochs1 = range(epochs)
             # Plotting results
-            fig,ax = plt.subplots(figsize=(12,8))
+            #fig,ax = plt.subplots(figsize=(12,8))
         
-            ax.set_ylabel('J(Theta)')
-            ax.set_xlabel('Iterations')
-            ax.plot(epochs1, myResult['costs'],'b.')
+            #ax.set_ylabel('Costs')
+            #ax.set_xlabel('Iterations')
+
+            
+            #fig,ax = plt.subplots(figsize=(12, 8))
+            #print(paramList)
+            # plotting costs
+            #ax.plot(epochs1, myResult['costs'],'b.')
+            #plt.legend(loc='upper right', bbox_to_anchor=(1.0, 1.00), borderaxespad=0.)
+            #plt.ylabel("Costs")
+            #plt.xlabel("epochs")
+            #plt.show()
             
             '''
             m = np.size(Y_train)
@@ -552,6 +587,7 @@ if __name__ == '__main__':
             #print(type(BatchSize))
             if (BatchSize==0):
                 print("Gradient Descent")
+                
                 # evaluating model parameters on test data
                 modelParams, costs = neuralNet.TrainNetworkGD(X_train, Y_train_onehot, m)
                 # making a prediction
@@ -567,17 +603,41 @@ Accuracy score on test set: {}
                   ===============================
                       '''.format(classification_report(Y_test, Y_pred),
                       accuracy_score(Y_test, Y_pred)))
+                
+                fig,ax = plt.subplots(figsize=(12, 8))
+                #print(paramList)
+                # plotting costs
+                epochs1 = range(epochs)
+                #for i in range(len(costsList)):
+                plt.plot(epochs1, costs)
+                plt.legend(loc='upper right', bbox_to_anchor=(1.0, 1.00), borderaxespad=0.)
+                plt.ylabel("Costs")
+                plt.xlabel("epochs")
+                plt.show()
+                sys.exit()
                 #print("Accuracy score on test set: ", accuracy_score(Y_test, Y_pred))
                 #print()
             elif (BatchSize > 0):
                 # just to make sure m is equal to batch size
-                m = BatchSize
+                #m = BatchSize
                 print("Mini Batches")
                 # evaluating costs
                 modelParams, costs = neuralNet.TrainNetworkMBGD(X_train, Y_train_onehot, m)#TrainNetworkMBGD(X_train, Y_train_onehot, m)
                 # making aprediction
                 test_predict = neuralNet.MakePrediction(X_test, modelParams)
                 print("Accuracy score on test set: ", accuracy_score(Y_test, test_predict))
+                fig,ax = plt.subplots(figsize=(12, 8))
+                #print(paramList)
+                # plotting costs
+                epochs1 = range(epochs)
+                #for i in range(len(costsList)):
+                plt.plot(epochs1, costs)
+                plt.legend(loc='upper right', bbox_to_anchor=(1.0, 1.00), borderaxespad=0.)
+                plt.ylabel("Costs")
+                plt.xlabel("epochs")
+                plt.show()
+                
+                sys.exit()
             
             
             #modelParams, 
@@ -624,7 +684,7 @@ Accuracy score on test set: {}
             print("%0.4f %0.2f%%" % (eval_results[0], eval_results[1]*100))
             
             
-            print("m is ", m)
+            #print("m is ", m)
             
         else:
             '''
@@ -635,14 +695,35 @@ Accuracy score on test set: {}
             raise Exception('No. of Layers should be >= {}! Check Parameter File.'.format(nLayers))
     
         
-    elif (NNType == 'Regression'):
+    elif (NNType == 'Regression'):        
         NNType, NNArch, nLayers, \
         nFeatures, nHidden, nOutput, \
-        epochs, alpha, lmbd, X, X_train, \
-        X_test, Y_train, Y_test, m,\
+        epochs, alpha, lmbd, X, Y, X_train, \
+        X_test, Y_train, Y_test, \
         x, y, z,\
         x_rav, y_rav, z_rav, zshape,\
         nInput, seed, BatchSize, Optimization = dataProc.CreateNetwork()
+        
+        
+        #print("X is ", X)
+        
+        #print("Y is ",  Y)
+        
+        #sys.exit()
+        
+        #print("nInput", nInput)
+        if BatchSize == 0:
+            # If batch size is zero, we will use standard Gradient Descent Method
+            m = nInput
+            #print("m is",m)
+        elif BatchSize > 0:
+            m = BatchSize
+        else:
+            print("Incorrect BatchSize. Check Parameter File!")
+            sys.exit()
+        
+        
+        
         '''
         Polynomial Regression on Franke Function
         '''
@@ -693,7 +774,7 @@ Accuracy score on test set: {}
             Switching to Neural Network
             '''
             
-            m = np.size(Y_train)
+            #m = np.size(Y_train)
             print('Neural Network')
             # passing configuration
             neuralNet = neural.NeuralNetwork(NNType, NNArch, \
@@ -703,11 +784,14 @@ Accuracy score on test set: {}
                                              lmbd, nInput, seed, BatchSize)
             
             #print(type(BatchSize))
-            print(X_train)
+            #print(X_train)
             if (BatchSize==0):
                 print("Gradient Descent")
+                
+                #print("m is ", m)
+                
                 modelParams, costs = neuralNet.TrainNetworkGD(X_train, Y_train, m)
-                print(modelParams)
+                #print(modelParams)
                 #print(modelParams)
                 
                 #print('Y_train_onehot', np.shape(Y_train))
@@ -730,12 +814,12 @@ Accuracy score on test set: {}
                 #print("X is", X.shape)
                 Y_pred = neuralNet.MakePrediction(X, modelParams)
                 
-                print("Y_pred is ", Y_pred)
+                #print("Y_pred is ", Y_pred)
                 
                 z = Y_pred.reshape(zshape)
-                print("x is", x.shape)
-                print("y is", y.shape)
-                print("z is", z.shape)
+                #print("x is", x.shape)
+                #print("y is", y.shape)
+                #print("z is", z.shape)
                 # takes an array of z values
                 #zarray = Y_test_pred
                 # output dir
@@ -757,6 +841,52 @@ Accuracy score on test set: {}
         
                 plt.show()
             elif (BatchSize > 0):
+                
+                
+                #  Keras
+                # to obtain the history
+                #history = History()
+                '''
+                To optimize our neural network we use Adam. Adam stands for Adaptive 
+                moment estimation. Adam is a combination of RMSProp + Momentum.
+                '''
+                '''
+                classifier = CallKerasModel(NNArch, nLayers)
+            
+                sgd = SGD(lr=alpha)
+                classifier.compile(optimizer = sgd, loss='mean_squared_error', metrics =['mse'])
+                #Fitting the data to the training dataset
+                history = classifier.fit(X, Y, validation_split=0.2, batch_size = BatchSize, epochs = epochs)
+                
+                fig,ax = plt.subplots(figsize=(12, 8))
+                # Plot training & validation loss values
+                plt.plot(history.history['loss'])
+                #plt.plot(history.history['val_loss'])
+                plt.title('Model loss')
+                plt.ylabel('Loss')
+                plt.xlabel('Epoch')
+                plt.legend(['Train', 'Test'], loc='upper left')
+                plt.show()
+                filename = outputPath + '/'+ 'linreg_manual_costs_e' + str(epochs).zfill(4)+'.png'
+                fig.savefig(filename)
+                
+                # making prediction and plotting franke function
+                Y_pred = classifier.predict_classes(X)
+                z = Y_pred.reshape(zshape)
+                # show the inputs and predicted outputs
+                #print("X=%s, Predicted=%s" % (Xnew[0], ynew[0]))
+                fig = plt.figure(figsize=(10, 5))
+                axe = fig.add_subplot(1,1,1, projection = '3d')
+                axe.view_init(5,0)
+                surf = axe.plot_surface(x, y, z, alpha = 0.5,\
+                                         cmap = 'brg_r', label="Franke function", linewidth = 0, antialiased = False)
+                filename = outputPath + '/'+ 'linreg_kers_surf_e' + str(epochs).zfill(4)+'.png'
+                fig.savefig(filename)
+
+        
+                plt.show()
+                '''
+                
                 print("Mini Batches")
                 modelParams, costs = neuralNet.TrainNetworkMBGD(X_train, Y_train, m)#TrainNetworkMBGD(X_train, Y_train_onehot, m)
                 Y_test_pred = neuralNet.MakePrediction(X_test, modelParams)
@@ -766,15 +896,30 @@ Accuracy score on test set: {}
                 #print("Accuracy score on test set: ", accuracy_score(Y_test, test_predict))
                 #x = x_rav
                 #y = y_rav
-                print("X is", X)
+                #print("X is", X)
                 Y_pred = neuralNet.MakePrediction(X, modelParams)
                 
-                print("Y_pred is ", Y_pred)
+                #print("Y_pred is ", Y_pred)
                 
-                z = Y_pred.reshape(zshape)
-                print("x is", x.shape)
-                print("y is", y.shape)
-                print("z is", z.shape)
+                
+                fig,ax = plt.subplots(figsize=(12, 8))
+                #print(paramList)
+                # plotting costs
+                epochs1 = range(epochs)
+                #for i in range(len(costsList)):
+                plt.plot(epochs1, costs)
+                plt.legend(loc='upper right', bbox_to_anchor=(1.0, 1.00), borderaxespad=0.)
+                plt.ylabel("Costs")
+                plt.xlabel("epochs")
+                plt.show()
+                # saving cost functions
+                filename = outputPath + '/'+ 'linreg_manual_costs_e' + str(epochs).zfill(4)+'.png'
+                fig.savefig(filename)
+                
+                znn_pred = Y_pred.reshape(zshape)
+                #print("x is", x.shape)
+                #print("y is", y.shape)
+                #print("z is", z.shape)
                 # takes an array of z values
                 #zarray = Y_test_pred
                 # output dir
@@ -784,17 +929,73 @@ Accuracy score on test set: {}
                 #print(filename)
                 # Turning interactive mode on
                 #plt.ion()
-                fig = plt.figure(figsize=(10, 5))
-                axe = fig.add_subplot(1,1,1, projection = '3d')
-                axe.view_init(5,0)
+                
+                def PlotSurface(x, y, z, filename):
+                    
+                    # output dir
+                    #output_dir = args[3]
+                    # filename
+                    #filename = args[4]
+                    #print(filename)
+                    # Turning interactive mode on
+                    #plt.ion()
+                    fig = plt.figure(figsize=(20, 10))
+                    axes = [fig.add_subplot(2, 3, i, projection='3d') for i in range(1, len(zarray) + 1)]
+                    angles = [45, 0, -45, 45, 0, -45]
+                    #axes[0].view_init(5,50)
+                    #axes[1].view_init(5,50)
+                    #axes[2].view_init(5,50)
+                    view = [axes[i].view_init(5, angles[i]) for i in range(6)]
+                    surf = [axes[i].plot_surface(x, y, zarray[i], alpha = 0.5,
+                                                 cmap = 'brg_r', label="Franke function", linewidth = 0, antialiased = False) for i in range(len(zarray))]
+                    # saving figure with corresponding filename
+                    #fig.savefig(output_dir + filename)
+                    # close the figure window
+                    #plt.close(fig)
+                    plt.show()
+                
+                zarray = [z,z,z, znn_pred, znn_pred, znn_pred]
+                filename = outputPath + '/'+ 'linreg_manual_surf_e' + str(epochs).zfill(4)+'.png'
+                PlotSurface(x, y, zarray, filename)
+                
+                #fig = plt.figure(figsize=(5, 5))
+                #axe = fig.add_subplot(1,1,1, projection = '3d')
+                #axe.view_init(5, 90)
                 #axes = [fig.add_subplot(1, 3, i, projection='3d') for i in range(1, len(zarray) + 1)]
                 #axes[0].view_init(5,50)
                 #axes[1].view_init(5,50)
                 #axes[2].view_init(5,50)
-                surf = axe.plot_surface(x, y, z, alpha = 0.5,\
-                                         cmap = 'brg_r', label="Franke function", linewidth = 0, antialiased = False)
+                #surf = axe.plot_surface(x, y, z, alpha = 0.5,\
+                #                         cmap = 'brg_r', label="Franke function", linewidth = 0, antialiased = False)
+                #filename = outputPath + '/'+ 'linreg_manual_surf_e' + str(epochs).zfill(4)+'.png'
+                #fig.savefig(filename)
         
-                plt.show()
+        
+                #plt.show()
+                
+                # Scikit Learn
+                
+                #mlpr = MLPRegressor(solver="lbfgs", alpha=alpha, 
+                #                   batchsize = m, hidden_layer_sizes = nHidden)
+                #mlpr.fit(X_train, Y_train)
+                #yTrue, yPred = Y_test, clf.predict(X_test)
+                #print(classification_report(yTrue, yPred))
+                #print("Roc auc: ", roc_auc_score(yTrue, yPred))
+                
+                
+                #mlpr= MLPRegressor(hidden_layer_sizes=hn,
+                #    activation=act_h, 
+                #    solver="adam", 
+                #    alpha = lmbd, 
+                #    learning_rate_init=eta
+                #    )
+                #mlpr.fit(XTrain, yTrain)
+
+                #yTrue, yPred = yTest, mlpr.predict(XTest)
+                #ypred = mlpr.predict(X)
+                
+                #R2 = mlpr.score(XTest,yTrue.ravel())
+                
     
     
     '''
