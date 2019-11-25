@@ -84,11 +84,12 @@ class NeuralNetwork:
         np.random.seed(seed)
         #self.Y = args[10]
         #self.m = args[11]
+        self.optimization = args[12]
         # Only for printing purpose
-        if (self.BatchSize == 0):
-            algorithm = 'Gradient Descent'
-        elif (self.BatchSize > 0):
-            algorithm = 'Mini Batch Gradient Descent'
+        #if (self.BatchSize == 0):
+        #    algorithm = 'Gradient Descent'
+        #elif (self.BatchSize > 0):
+        #    algorithm = 'Mini Batch Gradient Descent'
         #display(Markdown())
         print((u'''
         =========================================== 
@@ -114,7 +115,7 @@ class NeuralNetwork:
                                  self.NNArch[1]['AF'],
                                  self.NNArch[self.nLayers-1]['AF'],
                                  self.epochs,
-                                 algorithm,
+                                 self.optimization,
                                  self.alpha,
                                  self.lambd)))
     
@@ -225,6 +226,7 @@ class NeuralNetwork:
     This method is used during Feed Forward, for back propagation 
     there is another one below!
     '''
+    '''
     def DoBatchNormalisation(self, *args):
         X = args[0] # <= these are not actually X, but Z values 
         gamma = args[1]
@@ -251,9 +253,11 @@ class NeuralNetwork:
         #else:
         #    print("Batch Normalisation: Check your X shape!")
         #    sys.exit()
+    '''
             
     '''
     This one to implement Batch Normalisationwith Back Propagation
+    '''
     '''
     def DoDBatchNormalisation(self, *args):
         dout = args[0]
@@ -276,6 +280,7 @@ class NeuralNetwork:
         dbeta = np.sum(dout, axis=0)
     
         return dX, dgamma, dbeta
+    '''
     
     '''
     Feed Forward seems to return correct (!) shapes
@@ -316,28 +321,7 @@ class NeuralNetwork:
             #print(Z[str(l)])
             # applying corresponding activation function
             A[str(l)] = self.GetA(Z[str(l)], l)
-            #if np.isnan(Z[str(l)]):
-            #print("A is", A[str(l)])
-            
-            #print("Z"+str(l), Z[str(l)].shape)
-            #print("A"+str(l), A[str(l)].shape)
-            
-            #print(A[str(l)])
-            #if np.isnan(Z[str(l)]):
-            #    print('NaN values spotted')
-            #print('l={}: Z={}, A={}' .format(l, np.shape(Z[str(l)]), np.shape(A[str(l)])))
 
-
-        #self.A1 = np.matmul(X, params["W1"]) + params["B1"] # (N, 2) * (2, 2) -> (N, 2)
-        #self.H1 = self.forward_activation(self.A1) # (N, 2)
-        #self.A2 = np.matmul(self.H1, params["W2"]) + params["B2"] # (N, 2) * (2, 4) -> (N, 4)
-        #self.H2 = self.softmax(self.A2) # (N, 4)
-        #return self.H2
-
-        # Z1 (5000, 10), batch size 5000
-        # A1 (5000, 10)
-        # Z2 (5000, 1)
-        # A2 (5000, 1)
 
         # returning dictionary of outputs
         return A, Z
@@ -375,16 +359,6 @@ class NeuralNetwork:
         #self.modelParams = args[3]
         m = args[4]
         
-        #self.forward_pass(X, params)
-        #m = X.shape[0]
-        #self.gradients["dA2"] = self.H2 - Y # (N, 4) - (N, 4) -> (N, 4)
-        #self.gradients["dW2"] = np.matmul(self.H1.T, self.gradients["dA2"]) # (2, N) * (N, 4) -> (2, 4)
-        #self.gradients["dB2"] = np.sum(self.gradients["dA2"], axis=0).reshape(1, -1) # (N, 4) -> (1, 4)
-        #self.gradients["dH1"] = np.matmul(self.gradients["dA2"], params["W2"].T) # (N, 4) * (4, 2) -> (N, 2)
-        #self.gradients["dA1"] = np.multiply(self.gradients["dH1"], self.grad_activation(self.H1)) # (N, 2) .* (N, 2) -> (N, 2)
-        #self.gradients["dW1"] = np.matmul(X.T, self.gradients["dA1"]) # (2, N) * (N, 2) -> (2, 2)
-        #self.gradients["dB1"] = np.sum(self.gradients["dA1"], axis=0).reshape(1, -1) # (N, 2) -> (1, 2)
-            
         X = args[5]
         # errors for output layer
         delta = {}
@@ -484,14 +458,14 @@ class NeuralNetwork:
         gamma = 0.9
         eps=1e-8
         
-        algorithm = 'AdaGrad'
+        algorithm = self.optimization
         
         # Different versions of weights updates :)
         if algorithm == 'GD':            
             for l in range(1, self.nLayers):
                 self.modelParams['W' + str(l)] -= dJ['dW' + str(l)] * self.alpha / (m)# * np.sqrt(6.0 / (n_l + n_next)) # <= this one should be correct
                 self.modelParams['b' + str(l)] -= dJ['db' + str(l)] * self.alpha / (m)# * np.sqrt(6.0 / (n_l + n_next)) # <= this one should be correct
-        elif algorithm == 'MiniBatch':
+        elif algorithm == 'MBGD':
             for batch in range(self.BatchSize):
                 for l in range(1, self.nLayers):
                     self.modelParams['W' + str(l)] -= dJ['dW' + str(l)] * self.alpha / (m)# * np.sqrt(6.0 / (n_l + n_next)) # <= this one should be correct
@@ -502,7 +476,7 @@ class NeuralNetwork:
                 self.update_params["v_b"+str(l)] = gamma *self.update_params["v_b"+str(l)] + self.alpha * (dJ['db' + str(l)]/m)
                 self.modelParams["W"+str(l)] -= self.update_params["v_w"+str(l)]
                 self.modelParams["b"+str(l)] -= self.update_params["v_b"+str(l)]
-        elif algorithm == "AdaGrad":
+        elif algorithm == "Adagrad":
             for l in range(1, self.nLayers):
                 self.update_params["v_w"+str(l)] += (dJ['dW' + str(l)]/m)**2
                 self.update_params["v_b"+str(l)] += (dJ['db' + str(l)]/m)**2
@@ -696,28 +670,6 @@ class NeuralNetwork:
             return self.modelParams, costs
         else:
             Exception('It is neither Regression nor Classification task! Check Parameter File.')
-                    #print("modelParams", modelParams)
-            '''
-                    # creating mini batches to run on
-                    miniBatches = self.CreateMiniBatches(Xtrain, Ytrain, modelParams, self.BatchSize)
-                    #print(J)
-
-                    #print(dJ)
-                    # updating weights
-                    modelParams = self.UpdateWeights(dJ, modelParams, m)
-                    # getting values of cost function at each epoch
-                    if(epoch % 100 == 0):
-                        print('Cost after iteration# {:d}: {:f}'.format(epoch, J))
-                    costs.append(J)
-            # returning set of optimal model parameters
-            return modelParams, costs
-            '''
-        #elif self.NNType == 'Regression':
-         #   print('Regression has yet to be implemented')
-            # returning set of optimal model parameters
-         #   return None, None
-        #else:
-        #    Exception('It is neither Regression nor Classification task! Check Parameter File.')
             
     '''
     Function which will fit the test data
@@ -736,22 +688,5 @@ class NeuralNetwork:
             return np.argmax(A[str(self.nLayers-1)], axis=1)
         elif self.NNType == 'Regression':
             return A[str(self.nLayers-1)]
-        #print(np.shape(A))
-
-            
-            
-    # function to perform mini-batch gradient descent 
-#def gradientDescent(X, y, learning_rate = 0.001, batch_size = 32): 
-#    theta = np.zeros((X.shape[1], 1)) 
-#    error_list = [] 
-#    max_iters = 3
-#    for itr in range(max_iters): 
-#        mini_batches = create_mini_batches(X, y, batch_size) 
-#        for mini_batch in mini_batches: 
-#            X_mini, y_mini = mini_batch 
-#            theta = theta - learning_rate * gradient(X_mini, y_mini, theta) 
-#            error_list.append(cost(X_mini, y_mini, theta)) 
-  
-#    return theta, error_list 
     
     

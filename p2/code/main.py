@@ -87,7 +87,6 @@ def DoGriSearchClassification(logisticData, i, j, alpha, lmbd):
     f1 = []
     roc_auc = []
     costsTrain = []
-    #print(Y_onehot[10000][:])
     # Getting cost function averaged over all epochs
     # Doing KFold Cross validation - getting appropriate indexes
     kf = KFold(n_splits=5, random_state=1, shuffle=True)
@@ -131,55 +130,7 @@ def DoGriSearchClassification(logisticData, i, j, alpha, lmbd):
     #results = {AAccuracy: ['lambda='+str(lmbd)+', alpha='+str(alpha)]}#{'lambda='+str(lmbd)+', alpha='+str(alpha): [AAccuracy]}#, 'alpha='+str(alpha): [AAccuracy]}
     results = {AROC: ['lambda='+str(lmbd)+', alpha='+str(alpha)]}
     myResult = pd.DataFrame(results)
-    
-    # returning costs and theta parameters
-    #costs, theta = pipeline.DoLogisticRegression(X_train, \
-#                                                Y_train, epochs, lmbd, alpha)
-    # fitting parameters to the data and evaluate all tests etc.
-    #Y_pred = pipeline.PredictLogisticRegression(X_test, theta)
-    # getting the resulting values, to plot andto fit later on
-    #myResult = {alpha: [costs, theta], lambd: [costs, theta]}
-    #myResult = {'costs': costs, 'theta': theta, 'lmbd': lmbd, 'alpha': alpha}
-    #print('ihgvfghcjghcghhhhhhhhhhhhhhhhhhhhhhhfgchcjhvgmvhjvhvhvhvh')
-    # Evaluating scores
-    #funclib.ErrorFuncs.own_classification_report(Y_train, Y_pred)
-    #Accuracy, Precision, Recall, F1 = funclib.ErrorFuncs.CallF1(Y_train, Y_pred)
-    # adding result to the dictionary
-    #myResult[alpha] = [Accuracy, Precision, Recall, F1]
-    #myResult[alpha][Accuracy, Precision, Recall, F1]
-
-    #the F1-score is simply the harmonic mean of precision (PRE) and recall (REC)
-
-    #F1 = 2 * (PRE * REC) / (PRE + REC)
-    
-    # If we write the two metrics PRE and REC in terms of 
-    # true positives (TP), true negatives (TN), false positives 
-    # (FP), and false negatives (FN), we get:
-    
-    #PRE = TP / (TP + FP)
-    #REC = TP / (TP + FN)
-    #Thus, the precision score gives us an idea 
-    #(expressed as a score from 1.0 to 0.0, from good to bad) 
-    #of the proportion of how many actual spam emails (TP) we 
-    #correctly classified as spam among all the emails we classified 
-    #as spam (TP + FP). In contrast, the recall (also ranging from 1.0 to 0.0) 
-    #tells us about how many of the actual spam emails (TP) we "retrieved" or 
-    #"recalled" (TP + FN).    
-    '''
-    1. ROC Curve <= both scikit and manual
-    2. Scatter Plot diagram of Actual and Predicted probability
-    3. Table of Area Ratio (test data), Accuracy (Test Data), Accuracy (Average),
-    F1 score (test data), F1 (score average) <=
-    4. Plots of Gradient Descent and MiniBatch Gradient Descent Cost functions
-    for  different epochs
-    5. plots of ROC and AUC Curves of epochs
-    '''
-    
-    '''
-    The corresponding Scikit Learn Alternative. I could've done something like
-    GridSearch or other function to tune the parameters, but I am already doing 
-    it, by looping over some values.
-    '''
+      
     
     return myResult#print(i, j, alpha, lambd)
 
@@ -252,21 +203,16 @@ if __name__ == '__main__':
         nHidden, nOutput, epochs, alpha, lmbd, \
         X, Y, X_train, X_test, Y_train, Y_test, Y_onehot, Y_train_onehot, Y_test_onehot,\
         nInput, seed, onehotencoder,\
-        BatchSize, Optimization = dataProc.CreateNetwork()
+        BatchSize, optimization = dataProc.CreateNetwork()
         
-        
-        #print("X is ", X)
-        #print("Y is",  Y)
-        
-        #sys.exit()
-        
-        #print("nInput", nInput)
-        if BatchSize == 0:
+        if optimization == 'GD': #if BatchSize == 0:
             # If batch size is zero, we will use standard Gradient Descent Method
             m = nInput
             #print("m is",m)
-        elif BatchSize > 0:
+        elif optimization == 'MBGD': #elif BatchSize > 0:
             m = BatchSize
+        elif optimization == 'Adagrad':
+            m  = BatchSize
         else:
             print("Incorrect BatchSize. Check Parameter File!")
             sys.exit()
@@ -276,7 +222,7 @@ if __name__ == '__main__':
         nHidden, nOutput, epochs, \
         X, Y, X_train, X_test, Y_train, Y_test, Y_onehot, Y_train_onehot, Y_test_onehot,\
         m, nInput, seed, onehotencoder,\
-        BatchSize, Optimization
+        BatchSize, optimization
         '''
         # If we want to explore parameter space, we should get data from 
         # the parameter file. So, we need to do a Grid Search for the best
@@ -305,23 +251,7 @@ if __name__ == '__main__':
                   '''
                   =====================================
                   ''')
-            #pipeline = regression.RegressionPipeline()
-            
-            
-            # Getting cost function averaged over all epochs
-            #costs, theta = pipeline.DoLogisticRegression(X_train, \
-#                                                        Y_train, epochs, lmbd, alpha)
-            # getting the resulting values, to plot andto fit later on
-            #myResult = {alpha: [costs, theta], lmbd: [costs, theta]}
-            # fitting parameters to the data and evaluate all tests etc.
-            #Y_pred = pipeline.PredictLogisticRegression(X_test, theta)
-            #print(np.shape(Y_pred))
-            #print((Y_train))
-            #Y_true = Y_train
-            #own_classification_report
-            
-            
-            #[print(alpha, lmbd) for i, alpha in enumerate(alphas) for j, lmbd in enumerate(lambdas)]
+
             
             # enabling parallel processing - returning the list of pandas data frames
             myResults = Parallel(n_jobs=nproc, verbose=10)(delayed(DoGriSearchClassification)\
@@ -349,7 +279,8 @@ if __name__ == '__main__':
             costsList = []
             paramList = []
             epochs1 = range(epochs)
-            fig = plt.figure()
+            fig = plt.figure(figsize=(20, 8))
+            axe = []
             # okay, I've got a set of parameters  for which I can now plot stuff
             for i in range(len(params)):
                 # getting the best parameters - converting string to floats
@@ -374,18 +305,25 @@ if __name__ == '__main__':
                     print(classification_report(Y_test, Y_pred))
                     costsList.append(costs)
                     paramList.append(params[i])
+                    # plotting ROC AUC
+                    axe.append(fig.add_subplot(1,2,i+1))
                     # Calculating Roc_auc
                     fpr, tpr, thresholds = roc_curve(y_true = Y_test, y_score = Y_pred, pos_label = 1) #positive class is 1; negative class is 0
                     roc_auc = auc(fpr, tpr)
                     lw = 2
-                    plt.plot(fpr, tpr, color='darkorange', lw=lw, label='ROC curve (area = %0.2f)' % roc_auc)
-                    plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
-                    plt.xlim([0.0, 1.0])
-                    plt.ylim([0.0, 1.05])
-                    plt.xlabel('False Positive Rate')
-                    plt.ylabel('True Positive Rate')
-                    plt.title('Receiver operating characteristic example')
-                    plt.legend(loc="lower right")
+                    axe[i].plot(fpr, tpr, color='darkorange', lw=lw, label='ROC curve (area = %0.2f)' % roc_auc)
+                    axe[i].plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+                    axe[i].set_xlim([0.0, 1.0])
+                    axe[i].set_ylim([0.0, 1.05])
+                    axe[i].set_xlabel('False Positive Rate')
+                    axe[i].set_ylabel('True Positive Rate')
+                    axe[i].legend(loc="lower right")
+            
+            #plt.title('Receiver operating characteristic example')
+            #plt.legend(loc="lower right")
+            # saving figure
+            filename = outputPath + '/'+ 'logreg_rocauc_e' + str(epochs).zfill(4)+'.png'
+            fig.savefig(filename)
 
             #print(costsList)
             fig,ax = plt.subplots(figsize=(12, 8))
@@ -399,7 +337,7 @@ if __name__ == '__main__':
             plt.xlabel("epochs")
             plt.show()
             # saving cost functions
-            filename = outputPath + '/'+ 'linreg_costs_e' + str(epochs).zfill(4)+'.png'
+            filename = outputPath + '/'+ 'logreg_costs_e' + str(epochs).zfill(4)+'.png'
             fig.savefig(filename)
             
             # Calculating Roc metrics
@@ -410,6 +348,7 @@ if __name__ == '__main__':
             #lw = 2
             #plt.plot(fpr, tpr, color='darkorange',
             #         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc)
+            
             #plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
             #plt.xlim([0.0, 1.0])
             #plt.ylim([0.0, 1.05])
@@ -571,7 +510,7 @@ if __name__ == '__main__':
                                              nLayers, nFeatures, \
                                              nHidden, nOutput, \
                                              epochs, alpha, \
-                                             lmbd, nInput, seed, BatchSize)
+                                             lmbd, nInput, seed, BatchSize, optimization)
             
             
             '''
@@ -624,8 +563,44 @@ Accuracy score on test set: {}
                 # evaluating costs
                 modelParams, costs = neuralNet.TrainNetworkMBGD(X_train, Y_train_onehot, m)#TrainNetworkMBGD(X_train, Y_train_onehot, m)
                 # making aprediction
-                test_predict = neuralNet.MakePrediction(X_test, modelParams)
-                print("Accuracy score on test set: ", accuracy_score(Y_test, test_predict))
+                Y_pred = neuralNet.MakePrediction(X_test, modelParams)
+                print('''
+                  ===============================
+                  Model Evaluation     -   Manual
+                  ===============================
+{}
+Accuracy score on test set: {}
+                  ===============================
+                  Model Evaluation     -    Keras
+                  ===============================
+                      '''.format(classification_report(Y_test, Y_pred),
+                      accuracy_score(Y_test, Y_pred)))
+                
+                #print("Accuracy score on test set: ", accuracy_score(Y_test, test_predict))
+                
+                # Calculating Roc metrics
+                fig,ax = plt.subplots(figsize=(12, 8))
+                fpr, tpr, thresholds = roc_curve(y_true = Y_test, y_score = Y_pred, pos_label = 1) #positive class is 1; negative class is 0
+                roc_auc = auc(fpr, tpr)
+                
+                #fig = plt.figure()
+                lw = 2
+                plt.plot(fpr, tpr, color='darkorange',
+                         lw=lw, label='ROC curve (area = %0.2f)' % roc_auc)
+                
+                plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+                plt.xlim([0.0, 1.0])
+                plt.ylim([0.0, 1.05])
+                plt.xlabel('False Positive Rate')
+                plt.ylabel('True Positive Rate')
+                plt.title('Receiver operating characteristic example')
+                plt.legend(loc="lower right")
+                plt.show()
+                
+                filename = outputPath + '/'+ 'nnlog_rocauc_e' + str(epochs).zfill(4)+'.png'
+                fig.savefig(filename)
+                
+                # the cost function
                 fig,ax = plt.subplots(figsize=(12, 8))
                 #print(paramList)
                 # plotting costs
@@ -637,7 +612,10 @@ Accuracy score on test set: {}
                 plt.xlabel("epochs")
                 plt.show()
                 
-                sys.exit()
+                filename = outputPath + '/'+ 'nnlog_costs_e' + str(epochs).zfill(4)+'.png'
+                fig.savefig(filename)
+                
+                #sys.exit()
             
             
             #modelParams, 
@@ -675,24 +653,26 @@ Accuracy score on test set: {}
                 BatchSize = 100
             # Stochatic gradient descent
             sgd = SGD(lr=alpha)
+            '''
             classifier.compile(optimizer = sgd, loss='binary_crossentropy', metrics =['accuracy'])
             #Fitting the data to the training dataset
             classifier.fit(X_train, Y_train_onehot, batch_size=BatchSize, epochs = epochs)
-            np.set_printoptions(precision=4, suppress=True)
+            #np.set_printoptions(precision=4, suppress=True)
             eval_results = classifier.evaluate(X_test, Y_test_onehot, verbose=0) 
             print("\nLoss, accuracy on test data: ")
             print("%0.4f %0.2f%%" % (eval_results[0], eval_results[1]*100))
+            '''
             
             
             #print("m is ", m)
             
-        else:
-            '''
-            Raise an exception, if number of layers is smaller than 2. It shouldn't be the case,
-            because in param file I am specifying number of hidden layers and not the total layers.
-            Then I add 2 to that number in the code. But better safe than sorry :) 
-            '''
-            raise Exception('No. of Layers should be >= {}! Check Parameter File.'.format(nLayers))
+        #else:
+        #    '''
+        #    Raise an exception, if number of layers is smaller than 2. It shouldn't be the case,
+        #    because in param file I am specifying number of hidden layers and not the total layers.
+        #    Then I add 2 to that number in the code. But better safe than sorry :) 
+        #    '''
+        #    raise Exception('No. of Layers should be >= {}! Check Parameter File.'.format(nLayers))
     
         
     elif (NNType == 'Regression'):        
@@ -702,7 +682,7 @@ Accuracy score on test set: {}
         X_test, Y_train, Y_test, \
         x, y, z,\
         x_rav, y_rav, z_rav, zshape,\
-        nInput, seed, BatchSize, Optimization = dataProc.CreateNetwork()
+        nInput, seed, BatchSize, optimization, z_lin = dataProc.CreateNetwork()
         
         
         #print("X is ", X)
@@ -712,12 +692,14 @@ Accuracy score on test set: {}
         #sys.exit()
         
         #print("nInput", nInput)
-        if BatchSize == 0:
+        if optimization == 'GD': #if BatchSize == 0:
             # If batch size is zero, we will use standard Gradient Descent Method
             m = nInput
             #print("m is",m)
-        elif BatchSize > 0:
+        elif optimization == 'MBGD': #elif BatchSize > 0:
             m = BatchSize
+        elif optimization == 'Adagrad':
+            m  = BatchSize
         else:
             print("Incorrect BatchSize. Check Parameter File!")
             sys.exit()
@@ -781,7 +763,7 @@ Accuracy score on test set: {}
                                              nLayers, nFeatures, \
                                              nHidden, nOutput, \
                                              epochs, alpha, \
-                                             lmbd, nInput, seed, BatchSize)
+                                             lmbd, nInput, seed, BatchSize, optimization)
             
             #print(type(BatchSize))
             #print(X_train)
@@ -913,10 +895,13 @@ Accuracy score on test set: {}
                 plt.xlabel("epochs")
                 plt.show()
                 # saving cost functions
-                filename = outputPath + '/'+ 'linreg_manual_costs_e' + str(epochs).zfill(4)+'.png'
+                filename = outputPath + '/'+ 'nnlin_manual_costs_e' + str(epochs).zfill(4)+'.png'
                 fig.savefig(filename)
                 
                 znn_pred = Y_pred.reshape(zshape)
+                
+                
+                
                 #print("x is", x.shape)
                 #print("y is", y.shape)
                 #print("z is", z.shape)
@@ -940,12 +925,12 @@ Accuracy score on test set: {}
                     # Turning interactive mode on
                     #plt.ion()
                     fig = plt.figure(figsize=(20, 10))
-                    axes = [fig.add_subplot(2, 3, i, projection='3d') for i in range(1, len(zarray) + 1)]
-                    angles = [45, 0, -45, 45, 0, -45]
+                    axes = [fig.add_subplot(3, 3, i, projection='3d') for i in range(1, len(zarray) + 1)]
+                    angles = [45, 0, -45, 45, 0, -45, 45, 0, -45]
                     #axes[0].view_init(5,50)
                     #axes[1].view_init(5,50)
                     #axes[2].view_init(5,50)
-                    view = [axes[i].view_init(5, angles[i]) for i in range(6)]
+                    view = [axes[i].view_init(5, angles[i]) for i in range(9)]
                     surf = [axes[i].plot_surface(x, y, zarray[i], alpha = 0.5,
                                                  cmap = 'brg_r', label="Franke function", linewidth = 0, antialiased = False) for i in range(len(zarray))]
                     # saving figure with corresponding filename
@@ -953,10 +938,18 @@ Accuracy score on test set: {}
                     # close the figure window
                     #plt.close(fig)
                     plt.show()
+                    
+                    #filename = outputPath + '/'+ 'linreg_manual_surf_e' + str(epochs).zfill(4)+'.png'
+                    fig.savefig(filename)
                 
-                zarray = [z,z,z, znn_pred, znn_pred, znn_pred]
-                filename = outputPath + '/'+ 'linreg_manual_surf_e' + str(epochs).zfill(4)+'.png'
+                
+                # getting values from previous project to compare
+
+                
+                zarray = [z,z,z, z_lin, z_lin, z_lin, znn_pred, znn_pred, znn_pred]
+                filename = outputPath + '/'+ 'nnlin_manual_surf_e' + str(epochs).zfill(4)+'.png'
                 PlotSurface(x, y, zarray, filename)
+                
                 
                 #fig = plt.figure(figsize=(5, 5))
                 #axe = fig.add_subplot(1,1,1, projection = '3d')

@@ -125,6 +125,7 @@ class RegressionPipeline:
         #lib.plotSurface(self.x, self.y, zarray_ridge, self.output_dir, filename)
         
         #PlotSurface.PlotFuncs()
+        return ztilde_ridge
         
         
         

@@ -104,13 +104,6 @@ class NetworkArchitecture:
             Now, let's take a look for the 10 random data samples.
             '''
             display(data.sample(10))#data.head(3))
-            # Checking for missing values
-            #for column in data:
-            #    if data[column].isnull().values.any():
-            #        print("NaN value/s detected in " + column)
-            #    else:
-            #        continue
-                    #print("column {} doesn't have null values".format(column))
             '''
             Plotting correlation matrix to see
             which features will affect default the most
@@ -396,11 +389,6 @@ class NetworkArchitecture:
         # If data is of classification type, then process corresponding data set
         if (NNType == 'Classification'):
             # Seperate the label into different Dataframe (outcome) and the other features in (data)
-            #X = data.drop('default',axis=1)
-            # leaving only default
-            #Y = data['default']
-            # adding new axis to the data
-            #Y = Y[:, np.newaxis]
             X = data.loc[:, data.columns != "default"].values
             Y = data.loc[:, data.columns == "default"].values
             #print(np.shape(Y))
@@ -436,12 +424,6 @@ class NetworkArchitecture:
             Y_train_onehot = onehotencoder.fit_transform(Y_train)#.reshape(len(Y_train), -1))
             Y_test_onehot =  onehotencoder.fit_transform(Y_test)#.reshape(len(Y_test), -1))
             
-            #print("Y_train_onehot is \n", np.shape(Y_train_onehot))
-            #print("Y_test_onehot  is \n", np.shape(Y_test_onehot))
-   
-            #to_categorical(Y_train)#
-            #to_categorical(Y_test)#
-            #print("Y_train shape", np.shape(Y_onehot))
             
             '''
             Now we encode the string values in the features 
@@ -465,18 +447,6 @@ class NetworkArchitecture:
             return X, Y, X_train, X_test, Y_train, Y_test, Y_onehot, Y_train_onehot, Y_test_onehot, onehotencoder#Y_train, Y_test, m
         
         elif (NNType == 'Regression'):
-            '''
-            x = np.linspace(0, 1, N)
-            y = np.linspace(0, 1, N)
-            x_, y_ = np.meshgrid(x,y)
-    
-            data = np.c_[(x_.ravel()).T,(y_.ravel()).T]
-            data = pd.DataFrame(data)
-    
-            # Create and transform franke function data
-            b = self.FrankeFunction(x_, y_) + np.random.normal(size=x_.shape)*noise # Franke function with optional gaussian noise
-            y = b.ravel()
-            '''
             
             x_symb, x_vals, x, y, z = data
             n_vars = self.paramData['nVars']
@@ -484,13 +454,6 @@ class NetworkArchitecture:
             sigma = self.paramData['noise']
             poly_degree = self.paramData['degree']
             lambda_par = self.paramData['lambda']
-            #print(type(poly_degree))
-            #nproc = args[0]
-            # for plotting betas (this valu will appear in the file name <= doesn't affect calculations)
-            #npoints_name = args[1]
-            #curr_lambda = args[2]
-            # library object instantiation
-            #lib = rl.RegressionLibrary(self.x_symb, self.x_vals)
             # raveling variables (making them 1d
             x_rav, y_rav, z_rav = np.ravel(x), np.ravel(y), np.ravel(z)
             # shape of z
@@ -504,47 +467,15 @@ class NetworkArchitecture:
             # getting the design matrix
             X = func.ConstructDesignMatrix(x_symb, x_vals, poly_degree)
             
-            #data = np.c_[(x.ravel()).T,(y.ravel()).T]
-            #data = pd.DataFrame(data)
-    
-            # Create and transform franke function data
-            #b = self.FrankeFunction(x_, y_) + np.random.normal(size=x_.shape)*noise # Franke function with optional gaussian noise
-            #y = b.ravel()
-    
-            # Create design matrix with polynomial features
-            #poly = PolynomialFeatures(degree=poly_degree) 
-            #X = poly.fit_transform(data) 
-            
             # Dump everything into Regression Pipeline
-            regression.RegressionPipeline().DoLinearRegression(X, x, y, z, x_rav, \
+            z_lin = regression.RegressionPipeline().DoLinearRegression(X, x, y, z, x_rav, \
                                          y_rav, z_rav, zshape, \
                                          poly_degree, lambda_par, sigma, outputPath)
             Y = z_rav
             #print(Y.shape)
             X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size = testSize, random_state = 1)
-            #m = X_train.shape[1]
-            #''' MANUAL '''
-            #ztilde_ridge, beta_ridge, beta_min, beta_max = lib.doRidgeRegression(X, z_rav, self.lambda_par, self.confidence, self.sigma)
-            #ztilde_ridge = ztilde_ridge.reshape(zshape)
-            #''' Scikit Learn '''
-            #ridge_reg = Ridge(alpha = self.lambda_par, fit_intercept=True).fit(X_poly, z_rav)
-            #ztilde_sk = ridge_reg.predict(X_poly).reshape(zshape)
-            #zarray_ridge = [self.z, ztilde_ridge, ztilde_sk]
-            #print('\n')
-            #print("Ridge MSE (no CV) - " + str(lib.getMSE(zarray_ridge[0], zarray_ridge[1])) + "; sklearn - " + str(mean_squared_error(zarray_ridge[0], zarray_ridge[2])))
-            #print("Ridge R^2 (no CV) - " + str(lib.getR2(zarray_ridge[0], zarray_ridge[1])) + "; sklearn - " + str(ridge_reg.score(X_poly, z_rav)))
-            #print('\n')
-            #''' Plotting Surfaces '''
-            #filename = self.prefix + '_ridge_p' + str(self.poly_degree).zfill(2) + '_n' + npoints_name + '.png'
-            #lib.plotSurface(self.x, self.y, zarray_ridge, self.output_dir, filename)
             
-            #PlotSurface.PlotFuncs()
-            #X = lib.constructDesignMatrix(self.poly_degree)
-            # getting predictions
-            #ztilde_lin, beta_lin, beta_min, beta_max = lib.doLinearRegression(X, z_rav, self.confidence, self.sigma)
-            #ztilde_lin = ztilde_lin.reshape(zshape)
-            
-            return X, Y, X_train, X_test, Y_train, Y_test, x, y, z, x_rav, y_rav, z_rav, zshape
+            return X, Y, X_train, X_test, Y_train, Y_test, x, y, z, x_rav, y_rav, z_rav, zshape, z_lin
         
     '''
     Configuring Neural Network:
@@ -611,7 +542,7 @@ class NetworkArchitecture:
                    X_test, Y_train, Y_test, Y_onehot, Y_train_onehot, Y_test_onehot,\
                    nInput, seed, onehotencoder, BatchSize, Optimization
         elif (NNType == 'Regression'):
-            X, Y, X_train, X_test, Y_train, Y_test, x, y, z, x_rav, y_rav, z_rav, zshape = self.ProcessData()
+            X, Y, X_train, X_test, Y_train, Y_test, x, y, z, x_rav, y_rav, z_rav, zshape, z_lin = self.ProcessData()
             
             # Layer Architecture
             NNArch = []
@@ -663,4 +594,4 @@ class NetworkArchitecture:
                    X_test, Y_train, Y_test,\
                    x, y, z,\
                    x_rav, y_rav, z_rav, zshape,\
-                   nInput, seed, BatchSize, Optimization
+                   nInput, seed, BatchSize, Optimization, z_lin
