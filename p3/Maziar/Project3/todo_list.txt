@@ -1,0 +1,7 @@
+to study:
+
+* Random forrest (DT)
+* Neural Network
+
+
+

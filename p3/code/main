@@ -1,0 +1,223 @@
+"""
+@author: maksymb
+"""
+
+# Library imports
+import os, sys
+import numpy as np
+import keras
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder, StandardScaler, RobustScaler, MinMaxScaler
+from sklearn.model_selection import train_test_split
+
+import pandas as pd
+import yaml
+# libraries for plotting results
+import matplotlib.pyplot as plt
+import seaborn as sbn
+# to calculate time
+import time
+
+# importing manually created libraries
+import neural
+
+'''
+The main class of the program
+'''
+class MainPipeline:
+    # constructor
+    def __init__(self, *args):
+        paramFile = args[0]
+        # Getting values from Parameter file
+        with open(paramFile) as f:
+            self.paramData = yaml.load(f, Loader = yaml.FullLoader)
+
+    def normalize(self, x):
+        return (x - np.amin(x)) / (np.amax(x) - np.amin(x))
+
+    def set_category(self, data, train=None, test=None):
+        # The creation of bins/categories  aims to create to categories from
+        # the data set, seperated by the mean. The digitize function
+        # of numpy returns an array with 1,2,3....n as labels for each of n
+        # bins. The min, max cut off are  chosen to be larger/smaller than
+        # max min values of the data
+        bins = np.array([0, data.mean(), 100])
+
+        if train is None:
+            temp = np.digitize(data, bins)
+            return temp - 1
+        train_labels = np.digitize(train, bins)
+        test_labels = np.digitize(test, bins)
+        return train_labels - 1, test_labels - 1
+
+    def PreProcessing(self, *args):
+        # Random Seed
+        seed = self.paramData['RandomSeed']
+        '''
+        Data preprocessing
+        '''
+        # getting data from parameter file
+        #data = pd.read_csv(self.paramData['dataPath'], delimiter='\s+', encoding='utf-8')
+        print(self.paramData['dataPath'][0])
+        # as in Knut's file
+        data = pd.read_csv(self.paramData['dataPath'][0])
+        meta = pd.read_csv(self.paramData['dataPath'][1], delimiter=r"\s+")
+        dt   = data.replace(0, pd.np.nan).dropna(axis=1, how='any').fillna(0).astype(int)
+        data = self.normalize(dt)
+        ph = meta["pH"]
+        n2o = meta["N2O"]
+        temp = meta["Temperature"]
+        tp = meta["TP"]
+        anchors = {"TMP": (data.iloc[10], data.iloc[70])}
+        anchors["TP"] = (data.iloc[15], data.iloc[67])
+        # Some data formating
+        # y = make_categories(temp,2)
+        self.Y = tp.values.reshape(-1,1)
+        self.X_norm = data.to_numpy()
+        # Split into training and testing
+        self.X_train, self.X_test, y_train, y_test = train_test_split(self.X_norm,
+                                                            self.Y,
+                                                            random_state=seed,
+                                                            test_size=self.paramData['TestSize'])
+        y_train_l, y_test_l = self.set_category(self.Y, y_train, y_test)
+        # doing one hot encoding
+        onehot = OneHotEncoder(sparse=False, categories="auto")
+        self.Y_train_onehot = onehot.fit_transform(y_train_l)
+        self.Y_test_onehot = onehot.fit_transform(y_test_l)
+        #print(self.Y_train_onehot)
+        '''
+        # inputs
+        self.X = data.iloc[:, :10].values
+        # Scale inputs - applying normalization
+        ss = StandardScaler()
+        rs = RobustScaler()
+        mms = MinMaxScaler()
+        self.X_norm = mms.fit_transform(self.X)
+        # outputs - binary classification
+        self.Y = data.iloc[:, 11].values.reshape(-1, 1)
+        onehot = OneHotEncoder(sparse=False, categories="auto")
+        self.Y_onehot = onehot.fit_transform(self.Y)
+        # splitting data into train and test <= use one hot otherwis eit doesn't learn
+        self.X_train, self.X_test, self.Y_train, self.Y_test = train_test_split(self.X_norm, self.Y_onehot,
+                                                                                test_size=self.paramData['TestSize'],
+                                                                                random_state=self.paramData['RandomSeed'])
+        '''
+        '''
+        Creating Network Architecture
+        '''
+        # Network Type
+        NNType = self.paramData['type']
+        # Number of Hidden Layers
+        NHiddenLayers = self.paramData['NHiddenLayers']
+        # Total Number of Layers
+        NTotalLayers = NHiddenLayers + 2
+        # No of input data <= amount of data in a single column
+        Ndata = self.X_train.shape[0] #self.X_norm.shape[0]
+        # No of Input Neurons <= amount of variables
+        NInputNeurons = self.X_train.shape[1] #self.X_norm.shape[1] #paramData['N']
+        # No of hidden neurons
+        NHiddenNeurons = self.paramData['NHiddenNeurons']
+        # No of output neurons
+        NOutputNeurons = self.paramData['NOutputNeurons']
+        # Activation Functions
+        # activation functions
+        aHiddenFunc = self.paramData['HiddenFunc']
+        aOutputFunc = self.paramData['OutputFunc']
+        # Neural Network Layer Architecture
+        NNArch = []
+        # Creating NN architecture
+        for layer in range(0, NTotalLayers):
+            # input layer
+            if layer == 0:
+                NNArch.append({"LSize": NInputNeurons, "AF": aHiddenFunc})
+            # output layer
+            elif layer == (NTotalLayers-1):
+                NNArch.append({"LSize": NOutputNeurons, "AF": aOutputFunc})
+            # hidden layers
+            else:
+                NNArch.append({"LSize": NHiddenNeurons, "AF": aHiddenFunc})
+        # weights
+        weights = self.paramData['Weights']
+        # epochs to train the algorithm
+        epochs = self.paramData['epochs']#1000
+        # learning rate
+        alpha = self.paramData['alpha'] #0.3
+        # regularization parameter
+        lmbd = self.paramData['lambda'] #0.001
+        # Optimization Algorithm
+        optimization = self.paramData['Optimization']
+        # Loss function
+        loss = self.paramData['Loss']
+        # batch size
+        batchSize = self.paramData['BatchSize']
+
+        NNdata = seed, NNType, NHiddenLayers, NTotalLayers,\
+                      Ndata, NInputNeurons, NHiddenNeurons, \
+                      NOutputNeurons, aHiddenFunc, aOutputFunc, NNArch,\
+                      weights, epochs, alpha, lmbd, optimization, loss, batchSize
+        # returning the NN entire data structure
+        return NNdata
+
+    # Main Method
+    def Run(self, *args):
+        # retrieving network data
+        NNdata = self.PreProcessing()
+
+        if self.paramData['type'] == 'classification':
+            # passing parameter file
+            print(self.paramData)
+            '''
+            Getting Network Architecture
+            '''
+            network = neural.NeuralNetwork(NNdata)
+            # passing network architecture and create the model
+            model = network.BuildModel()
+            # training model
+            model, history = network.TrainModel(model, self.X_train, self.X_test, self.Y_train_onehot, self.Y_test_onehot)#self.X_norm, self.Y_onehot)
+            test_loss, test_acc = model.evaluate(self.X_test, self.Y_test_onehot)
+            print('Test accuracy:', test_acc)
+            # list all data in history
+            print(history.history.keys())
+            # summarize history for accuracy
+            plt.plot(history.history['acc'])
+            plt.plot(history.history['val_acc'])
+            plt.title('model accuracy')
+            plt.ylabel('accuracy')
+            plt.xlabel('epoch')
+            plt.legend(['train', 'test'], loc='upper left')
+            plt.show()
+            # summarize history for loss
+            plt.plot(history.history['loss'])
+            plt.plot(history.history['val_loss'])
+            plt.title('model loss')
+            plt.ylabel('loss')
+            plt.xlabel('epoch')
+            plt.legend(['train', 'test'], loc='upper left')
+            plt.show()
+        elif self.paramData['type'] == 'xgboost':
+            print('Running XGBoost')
+        elif self.paramData['type'] == 'rf':
+            print('Running Random Forest')
+
+    def Normalize(self, *args):
+        x = args[0]
+        return (x-np.amin(x))/(np.amax(x)-np.amin(x))
+
+'''
+Entry Point of the program
+'''
+if __name__ == '__main__':
+    # Estimate how much time it took for program to work
+    startTime = time.time()
+    '''
+    Configuring Network via Parameter file
+    '''
+    # Getting parameter file
+    paramFile = 'ParameterFile.yaml'
+    # Class Object Instantiation - passing
+    # configuration from parameter file
+    pipe = MainPipeline(paramFile)
+    pipe.Run()
+
+    # End time of the program
+    endTime = time.time()
+    print("-- Program finished at %s sec --" % (endTime - startTime))

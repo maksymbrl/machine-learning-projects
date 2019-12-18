@@ -13,7 +13,7 @@ RandomSeed:     1
 nHiddenLayers:  1 # type 0 to run Logistic Regression
 # Activation functions for hidden and output layers
 # (['sigmoid', 'tanh', 'relu', 'softmax'])
-hiddenFunc:     'sigmoid' #'sigmoid'
+hiddenFunc:     'relu' #'sigmoid'
 outputFunc:     'softmax' #'identity' #'softmax'
 # Size of the test sample
 testSize:       0.5
@@ -21,7 +21,7 @@ testSize:       0.5
 nHiddenNeurons: 40 # 21 # 4  # 30
 nOutputNeurons: 2 # classification = 2, Regression = 1
 # Epochs to train the algorithm
-epochs:         1000 #200 #170
+epochs:         100 #200 #170
 # Optimization Algorithm: choose it wisely :)
 #['MBGD', 'Adagrad' 'GD'] <= for minibatch, if you choose 1 you will get just stochstic GD
 # if you choose simply GD, then it willl ignore batchSize parameter and will use the whole data set
