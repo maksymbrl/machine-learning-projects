@@ -41,19 +41,4 @@ class XGBoosting:
         model.fit(X_train, y_train, eval_set=[(X_train, y_train), (X_test, y_test)],
                   eval_metric='rmse', early_stopping_rounds=100, verbose=False)
         #print(model)
-
-        #Get best model by test MSE
-        XGboost_best_model_index = model.best_iteration
-        XGboost_best_iteration = model.get_booster().best_ntree_limit
-        MSE_per_epoch = model.evals_result()
-
-        # make predictions for test data
-        y_pred = model.predict(X_test, ntree_limit=XGboost_best_iteration)
-        y_pred_train = model.predict(X_train)
-        #predictions = [round(value) for value in y_pred]
-
-        best_prediction = model.predict(X_CDOM, ntree_limit=XGboost_best_iteration)
-        CDOM_pred = best_prediction.copy()  #CDOM_pred.shape: (2556,) CDOM_pred are the predicted BCC Bray distances for CDOM value pairs
-        CDOM_pred_fine_mesh = model.predict(X_CDOM_diag_mesh, ntree_limit=XGboost_best_iteration)
-
-        return y_pred, y_pred_train, MSE_per_epoch, CDOM_pred, CDOM_pred_fine_mesh, XGboost_best_model_index
+        return model

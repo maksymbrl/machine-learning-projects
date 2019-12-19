@@ -430,7 +430,7 @@ class Functions:
         ax.set_ylabel(ylabel="CDOM site 2")
         ax.set_xlabel(xlabel="CDOM site 1")
 
-        filename = outputPath + '/'+ 'xgboost'+ '_3d'+'.png'
+        filename = outputPath + 'xgboost'+ '_3d'+'.png'
         fig.savefig(filename)
 
         # evaluate predictions
@@ -458,7 +458,7 @@ class Functions:
         plt.legend(fontsize="medium")
         plt.show()
 
-        filename = outputPath + '/'+ 'xgboost'+ '_best_mse'+'.png'
+        filename = outputPath + 'xgboost'+ '_best_mse'+'.png'
         fig.savefig(filename)
 
 
@@ -470,32 +470,41 @@ class Functions:
         NN_reg_original = args[0]
         CDOM = args[1]
 
+        # getting network type
+        type = args[2]
+        # output path were to save figures
+        outputPath = args[3]
+        # epochs
+        epochs = args[4]
+        # batch size
+        batch = args[5]
+
 
         test_predict = NN_reg_original.predict(NN_reg_original.XTest)
         #best_prediction = NN_reg_original.models[NN_reg_original.accuracy_list.index(min(NN_reg_original.accuracy_list))]
         print(NN_reg_original.accuracy_list)
         print("Minimum MSE :", min(NN_reg_original.accuracy_list), "reached at epoch ", NN_reg_original.accuracy_list.index(min(NN_reg_original.accuracy_list)))
 
-        plt.figure()
-        plt.plot(list(range(0, len(NN_reg_original.accuracy_list), 1)), NN_reg_original.accuracy_list, '-', label = 'MSE', linewidth=1)
-        plt.ylabel("MSE")
-        plt.xlabel("Number of epochs")
+        fig, ax = plt.subplots(1, 1)
+        #plt.figure()
+        ax.plot(list(range(0, len(NN_reg_original.accuracy_list), 1)), NN_reg_original.accuracy_list, '-', label = 'MSE', linewidth=1)
+        ax.set_ylabel("MSE")
+        ax.set_xlabel("Number of epochs")
         plt.grid(False)
         plt.legend(fontsize="medium")
         plt.legend()
         plt.yscale('log')
         plt.show()
 
-        def pdCat(x1,x2):
-            table = pd.DataFrame(np.concatenate((x1, x2), axis=1))
-            table.columns = ["CDOM.x1", "CDOM.x2"]
-            return table
+        filename = outputPath + type + '_e' + str(epochs).zfill(4)+ '_l'+ self.lossName + '_b'+str(batch)+'_mse'+'.png'
+        fig.savefig(filename)
+
 
         #Use log-transformed CDOM values for creating design matrix, then plot on original values
         x_mesh = np.log10(np.arange(min(CDOM.loc[:,"CDOM.x1"]), max(CDOM.loc[:,"CDOM.x2"]) + 0.01, 0.01)) + 1
         y_mesh = x_mesh.copy()
         x_mesh, y_mesh = np.meshgrid(x_mesh,y_mesh)
-        X_CDOM_mesh = pdCat(x_mesh.ravel()[:, np.newaxis], y_mesh.ravel()[:, np.newaxis]).to_numpy()
+        X_CDOM_mesh = self.pdCat(x_mesh.ravel()[:, np.newaxis], y_mesh.ravel()[:, np.newaxis]).to_numpy()
         best_prediction = NN_reg_original.model_prediction(X_CDOM_mesh, NN_reg_original.accuracy_list.index(min(NN_reg_original.accuracy_list)))
 
         x_mesh = np.arange(min(CDOM.loc[:,"CDOM.x1"]), max(CDOM.loc[:,"CDOM.x2"]) + 0.01, 0.01)
@@ -509,7 +518,7 @@ class Functions:
         #print(pd.DataFrame(ff_pred_original))
 
         # Plot the NN-smoothed surface
-        fig = plt.figure(figsize=(15,15))
+        fig = plt.figure(figsize=(15, 12))
         ax = fig.gca(projection="3d")
         ax.set_title("Predicted BCC Bray distances by sites' CDOM", fontsize=12)
         ax.view_init(elev=30.0, azim=300.0)
@@ -525,3 +534,12 @@ class Functions:
         fig.colorbar(surf, shrink=0.5, aspect=5)
         ax.tick_params(labelsize=8)
         plt.show()
+
+        filename = outputPath + type + '_e' + str(epochs).zfill(4)+ '_l'+ self.lossName + '_b'+str(batch)+'_3d'+'.png'
+        fig.savefig(filename)
+
+
+    def pdCat(self, x1, x2):
+        table = pd.DataFrame(np.concatenate((x1, x2), axis=1))
+        table.columns = ["CDOM.x1", "CDOM.x2"]
+        return table

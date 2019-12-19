@@ -11,33 +11,31 @@ from sklearn.model_selection import train_test_split
 class DataProcessing:
 
     def __init__(self):
-        pass
+        self.url                 = "https://github.com/laurent0001/tsv/raw/master/CDOM.gradient.mat.tsv"
+        self.url_mesh            = "https://github.com/laurent0001/tsv/raw/master/Bray_distances_by_CDOM_gradient_meshgrid.tsv"
+        self.url_CDOM_diag_mesh  = "https://github.com/laurent0001/tsv/blob/master/CDOM.diag.mesh.tsv?raw=true"
+        self.url_CDOM_sorted     = "https://github.com/laurent0001/tsv/raw/master/CDOM.tsv"
+        # Load bacterial community data
+        self.url_ASV             = "https://github.com/laurent0001/Project-3/blob/master/ASV_table.tsv?raw=true"
+        self.url_ASV_ranged      = "https://github.com/laurent0001/Project-3/blob/master/ASV_table_ranged.tsv?raw=true"
+        self.url_metadata        = "https://github.com/laurent0001/Project-3/raw/master/Metadata_table.tsv?raw=true"
+        self.url_metadata_scaled = "https://github.com/laurent0001/Project-3/raw/master/Metadata_table_scaled.tsv?raw=true"
 
     def GetMainData(self, *args):
         '''
         Data Preparation step
         '''
-        url                 = "https://github.com/laurent0001/tsv/raw/master/CDOM.gradient.mat.tsv"
-        url_mesh            = "https://github.com/laurent0001/tsv/raw/master/Bray_distances_by_CDOM_gradient_meshgrid.tsv"
-        url_CDOM_diag_mesh  = "https://github.com/laurent0001/tsv/blob/master/CDOM.diag.mesh.tsv?raw=true"
-        url_CDOM_sorted     = "https://github.com/laurent0001/tsv/raw/master/CDOM.tsv"
-        # Load bacterial community data
-        url_ASV             = "https://github.com/laurent0001/Project-3/blob/master/ASV_table.tsv?raw=true"
-        url_ASV_ranged      = "https://github.com/laurent0001/Project-3/blob/master/ASV_table_ranged.tsv?raw=true"
-        url_metadata        = "https://github.com/laurent0001/Project-3/raw/master/Metadata_table.tsv?raw=true"
-        url_metadata_scaled = "https://github.com/laurent0001/Project-3/raw/master/Metadata_table_scaled.tsv?raw=true"
-
-        CDOM = pd.read_csv(url, sep="\t") #BCC pairwise distances with CDOM values for both sites for each row
+        CDOM = pd.read_csv(self.url, sep="\t") #BCC pairwise distances with CDOM values for both sites for each row
         #CDOM_sites = pd.read_csv(url_sites, sep="\t") #Sites matching the order of BCC pairwise distances with CDOM values of both sites for each row
-        CDOM.mesh = pd.read_csv(url_mesh, sep="\t")
-        CDOM_diag_mesh = pd.read_csv(url_CDOM_diag_mesh, sep="\t")
-        CDOM_sorted = pd.read_csv(url_CDOM_sorted, sep="\t")
+        CDOM.mesh = pd.read_csv(self.url_mesh, sep="\t")
+        CDOM_diag_mesh = pd.read_csv(self.url_CDOM_diag_mesh, sep="\t")
+        CDOM_sorted = pd.read_csv(self.url_CDOM_sorted, sep="\t")
         CDOM_diag_mesh.columns = ["CDOM.x1", "CDOM.x2", "CDOM.mid"]
 
-        ASV = pd.read_csv(url_ASV, sep="\t")
-        ASV_ranged = pd.read_csv(url_ASV_ranged, sep="\t")
-        metadata = pd.read_csv(url_metadata, sep="\t")
-        metadata_scaled = pd.read_csv(url_metadata_scaled, sep="\t")
+        ASV = pd.read_csv(self.url_ASV, sep="\t")
+        ASV_ranged = pd.read_csv(self.url_ASV_ranged, sep="\t")
+        metadata = pd.read_csv(self.url_metadata, sep="\t")
+        metadata_scaled = pd.read_csv(self.url_metadata_scaled, sep="\t")
         X_ASV = ASV_ranged
         X_ASV.columns = [''] * len(X_ASV.columns)
         X_ASV = X_ASV.to_numpy()
