@@ -1,11 +1,18 @@
 import os, sys
 import numpy as np
+import pandas as pd
 import keras
 from keras import backend as K
 from keras.models import Model
 from keras.layers import Input, Dense
 
+from sklearn.metrics import mean_squared_error
+
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+from matplotlib import scale
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
 import time
 
@@ -214,9 +221,9 @@ class Functions:
             sys.exit()
 
     '''
-    Method used for plotting 
+    Method used for plotting (in Neural Networks with Keras)
     '''
-    def PlotResults(self, *args):
+    def PlotResultsKeras(self, *args):
         # getting the history to plot
         history = args[0]
         # getting network type
@@ -264,7 +271,7 @@ class Functions:
         Saving figure
         '''
         filename = outputPath + '/'+ type + '_e' + str(epochs).zfill(4)+ '_l'+ self.lossName + '_o' + str(optimizer) + '_b'+str(batch)+'.png'
-        print(filename)
+        #print(filename)
         fig.savefig(filename)
 
     '''
@@ -342,3 +349,179 @@ class Functions:
         x, y = vectors
         sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
         return K.sqrt(K.maximum(sum_square, K.epsilon()))
+
+    '''
+    Plot Results for XGBoost
+    '''
+    def PlotResultsXGBoost(self, *args):
+        # getting the inputs
+        CDOM = args[0]
+        CDOM_sorted = args[1]
+        X_CDOM_diag_mesh = args[2]
+        CDOM_pred_fine_mesh = args[3]
+        CDOM_pred = args[4]
+        outputPath = args[5]
+        y_pred = args[6]
+        y_pred_train = args[7]
+        MSE_per_epoch = args[8]
+        y_train = args[9]
+        y_test = args[10]
+        XGboost_best_model_index = args[11]
+
+        # Making 3d plots
+        fontsize = 10
+        # Plot Bray distance by CDOM
+        x1 = (CDOM_sorted.loc[:,"x"])
+        x2 = x1.copy()
+        x1, x2 = np.meshgrid(x1,x2)
+        CDOM.mesh[x1-x2==0] = np.nan
+
+        fig = plt.figure(figsize=plt.figaspect(0.25))#figsize=(15, 5))#figsize=plt.figaspect(0.5))
+        ax = fig.add_subplot(1, 3, 1, projection='3d')
+        ax.set_title("BCC Bray distances by sites' CDOM", fontsize=fontsize)
+        #plt.subplots_adjust(left=0, bottom=0, right=2, top=2, wspace=0, hspace=0)
+        ax.view_init(elev=30.0, azim=300.0)
+        surf = ax.plot_trisurf(CDOM.loc[:,"CDOM.x1"], CDOM.loc[:,"CDOM.x2"], CDOM.loc[:,"ASV.dist"],
+                               cmap='viridis', edgecolor='none')
+        # Customize the z axis.
+        ax.set_zlim(0.3, 1)
+        ax.zaxis.set_major_locator(LinearLocator(10))
+        ax.zaxis.set_major_formatter(FormatStrFormatter("%.02f"))
+        ax.tick_params(labelsize=8)
+        ax.set_zlabel(zlabel="Bray distance")
+        ax.set_ylabel(ylabel="CDOM site 2")
+        ax.set_xlabel(xlabel="CDOM site 1")
+
+        # Set up the axes for the second plot
+        ax = fig.add_subplot(1, 3, 2, projection='3d')
+        ax.set_title("Predicted BCC Bray distances by sites' CDOM, \n CDOM 0.01 step meshgrid", fontsize=fontsize)
+        ax.view_init(elev=30.0, azim=300.0)
+
+
+        # Plot the surface.
+        ax.plot_trisurf(X_CDOM_diag_mesh.loc[:,"CDOM.x1"], X_CDOM_diag_mesh.loc[:,"CDOM.x2"], CDOM_pred_fine_mesh, #197109 datapoints
+                        cmap='viridis', edgecolor='none')
+
+        # Customize the z axis.
+        ax.set_zlim(0.3, 1)
+        ax.zaxis.set_major_locator(LinearLocator(10))
+        ax.zaxis.set_major_formatter(FormatStrFormatter("%.02f"))
+        ax.tick_params(labelsize=8)
+        ax.set_zlabel(zlabel="Bray distance")
+        ax.set_ylabel(ylabel="CDOM site 2")
+        ax.set_xlabel(xlabel="CDOM site 1")
+
+
+        # Set up the axes for the fourth plot
+        ax = fig.add_subplot(1, 3, 3, projection='3d')
+        ax.set_title("Predicted BCC Bray distances by sites' CDOM, \n dataset CDOM coordinates", fontsize=fontsize)
+        ax.view_init(elev=30.0, azim=300.0)
+
+        # Plot the surface.
+        ax.plot_trisurf(CDOM.loc[:,"CDOM.x1"], CDOM.loc[:,"CDOM.x2"], CDOM_pred, #197109 datapoints
+                        cmap='viridis', edgecolor='none')
+
+        # Customize the z axis.
+        ax.set_zlim(0.3, 1)
+        ax.zaxis.set_major_locator(LinearLocator(10))
+        ax.zaxis.set_major_formatter(FormatStrFormatter("%.02f"))
+        ax.tick_params(labelsize=8)
+        ax.set_zlabel(zlabel="Bray distance")
+        ax.set_ylabel(ylabel="CDOM site 2")
+        ax.set_xlabel(xlabel="CDOM site 1")
+
+        filename = outputPath + '/'+ 'xgboost'+ '_3d'+'.png'
+        fig.savefig(filename)
+
+        # evaluate predictions
+        def TruePredictedTable(T,P):
+            table = pd.DataFrame(np.concatenate((T, P), axis=1))
+            table.columns = ["True values", "Predicted values"]
+            return table
+
+        MSE_XGboost = mean_squared_error(y_test, y_pred)
+        MSE_XGboost_train = mean_squared_error(y_train, y_pred_train)
+        print("MSE on test data:", MSE_XGboost)
+        print(TruePredictedTable(y_test[:, np.newaxis], y_pred[:, np.newaxis]))
+        print("MSE on train data:", MSE_XGboost_train)
+        print(TruePredictedTable(y_train[:, np.newaxis], y_pred_train[:, np.newaxis]))
+
+
+        print("Best test MSE at epoch", XGboost_best_model_index)
+        fig, ax = plt.subplots(1, 1)
+        #plt.figure()
+        ax.plot(list(range(0, len(MSE_per_epoch['validation_0']['rmse']), 1)), MSE_per_epoch['validation_1']['rmse'], '-', label = 'MSE test', linewidth=1)
+        ax.plot(list(range(0, len(MSE_per_epoch['validation_0']['rmse']), 1)), MSE_per_epoch['validation_0']['rmse'], '-', label = 'MSE train', linewidth=1)
+        ax.set_ylabel("MSE")
+        ax.set_xlabel("Number of epochs")
+        plt.grid(False)
+        plt.legend(fontsize="medium")
+        plt.show()
+
+        filename = outputPath + '/'+ 'xgboost'+ '_best_mse'+'.png'
+        fig.savefig(filename)
+
+
+    '''
+    Plotting Results for manual Feed Forward Neural Network
+    '''
+    def PlotResultsManualFFNN(self, *args):
+        # getting inputs
+        NN_reg_original = args[0]
+        CDOM = args[1]
+
+
+        test_predict = NN_reg_original.predict(NN_reg_original.XTest)
+        #best_prediction = NN_reg_original.models[NN_reg_original.accuracy_list.index(min(NN_reg_original.accuracy_list))]
+        print(NN_reg_original.accuracy_list)
+        print("Minimum MSE :", min(NN_reg_original.accuracy_list), "reached at epoch ", NN_reg_original.accuracy_list.index(min(NN_reg_original.accuracy_list)))
+
+        plt.figure()
+        plt.plot(list(range(0, len(NN_reg_original.accuracy_list), 1)), NN_reg_original.accuracy_list, '-', label = 'MSE', linewidth=1)
+        plt.ylabel("MSE")
+        plt.xlabel("Number of epochs")
+        plt.grid(False)
+        plt.legend(fontsize="medium")
+        plt.legend()
+        plt.yscale('log')
+        plt.show()
+
+        def pdCat(x1,x2):
+            table = pd.DataFrame(np.concatenate((x1, x2), axis=1))
+            table.columns = ["CDOM.x1", "CDOM.x2"]
+            return table
+
+        #Use log-transformed CDOM values for creating design matrix, then plot on original values
+        x_mesh = np.log10(np.arange(min(CDOM.loc[:,"CDOM.x1"]), max(CDOM.loc[:,"CDOM.x2"]) + 0.01, 0.01)) + 1
+        y_mesh = x_mesh.copy()
+        x_mesh, y_mesh = np.meshgrid(x_mesh,y_mesh)
+        X_CDOM_mesh = pdCat(x_mesh.ravel()[:, np.newaxis], y_mesh.ravel()[:, np.newaxis]).to_numpy()
+        best_prediction = NN_reg_original.model_prediction(X_CDOM_mesh, NN_reg_original.accuracy_list.index(min(NN_reg_original.accuracy_list)))
+
+        x_mesh = np.arange(min(CDOM.loc[:,"CDOM.x1"]), max(CDOM.loc[:,"CDOM.x2"]) + 0.01, 0.01)
+        y_mesh = x_mesh.copy()
+        x_mesh, y_mesh = np.meshgrid(x_mesh,y_mesh)
+
+        ff_pred_original = best_prediction.copy()
+        ff_pred_original = np.reshape(ff_pred_original, (363, 363))
+        ff_pred_original[x_mesh-y_mesh==0] = np.nan
+        ff_pred_original[x_mesh>y_mesh] = np.nan
+        #print(pd.DataFrame(ff_pred_original))
+
+        # Plot the NN-smoothed surface
+        fig = plt.figure(figsize=(15,15))
+        ax = fig.gca(projection="3d")
+        ax.set_title("Predicted BCC Bray distances by sites' CDOM", fontsize=12)
+        ax.view_init(elev=30.0, azim=300.0)
+        surf = ax.plot_surface(x_mesh, y_mesh, ff_pred_original, cmap='viridis',
+                               antialiased=True, vmin=np.nanmin(ff_pred_original), vmax=np.nanmax(ff_pred_original),
+                               rstride=1, cstride=1)
+        # Customize the z axis.
+        z_range =  (np.nanmax(ff_pred_original) - np.nanmin(ff_pred_original))
+        ax.set_zlim(np.nanmin(ff_pred_original) - z_range, np.nanmax(ff_pred_original) + z_range)
+        ax.zaxis.set_major_locator(LinearLocator(10))
+        ax.zaxis.set_major_formatter(FormatStrFormatter("%.02f"))
+        # Add a color bar which maps values to colors.
+        fig.colorbar(surf, shrink=0.5, aspect=5)
+        ax.tick_params(labelsize=8)
+        plt.show()

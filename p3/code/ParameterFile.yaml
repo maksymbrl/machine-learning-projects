@@ -2,9 +2,10 @@
 # Parameter File
 #======================================================================================================================#
 # Type of task to address:
+question:       'classification'
 # Feed Forward NN, Siamese NN, Triplet NN, XGBoost, Random Forest
-# ['ffnn_keras', 'snn_keras', 'tnn_keras', 'xgboost', 'rf']
-type:           'ffnn_keras'
+# ['ffnn_keras', 'snn_keras', 'tnn_keras', 'xgb', 'rf']
+type:           'ffnn_manual'
 # Path to data
 DataPath:       ['data/ASV_table_mod.csv','data/Metadata_table.tsv'] #'data/ASV_table_mod.csv'
 # Output Path - where to save all the files (phg's etc.)
@@ -33,16 +34,16 @@ OutputFunc:     'sigmoid'
 # Size of the test sample
 TestSize:       0.2
 # Number of Neurons for hidden and output layers
-NHiddenNeurons: 100 # 21 # 4  # 30
+NHiddenNeurons: 1000 # 21 # 4  # 30
 NOutputNeurons: 2 # classification = 2, Regression = 1
 # Epochs to train the algorithm
-epochs:         1000
+epochs:         10
 # Optimization Algorithm: choose it wisely :)
 #['MBGD', 'Adagrad' 'GD'] <= for minibatch, if you choose 1 you will get just stochstic GD
 # if you choose simply GD, then it willl ignore batchSize parameter and will use the whole data set
 Optimization:   'adagrad' # please use Adagrad for linear regression (as it may crush overwise
 # Batch size for Gradient Descent => if 0, will use simple gradient descent
-BatchSize:      5 #16 # 1 #10000 <= increase batch size and it will be good
+BatchSize:      10 #16 # 1 #10000 <= increase batch size and it will be good
 # Learning rate
 alpha:          0.01 # 0.01 # 0.01 #0.0001 #np.logspace(-5, 1, 7)
 # Regularisation - parameter used in Dropout layers
