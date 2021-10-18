@@ -11,7 +11,7 @@ All files, codes and the pdf of the report can be found inside "p1" folder.
 
 ## Project 2:
 
-In this project, I try to predict the probability of default from credit card data using _Logistic Regression_ and _Feed Forward Neural Network_ developed from scratch.
+In this project, I tried to predict the probability of default from credit card data using _Logistic Regression_ and _Feed Forward Neural Network_ developed from scratch.
 
 All files, codes and the pdf of the report can be found inside "p2" folder. 
 
